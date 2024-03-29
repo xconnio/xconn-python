@@ -1,1 +1,2 @@
 ruff==0.3.2
+simple-websocket==1.0.0

@@ -1,3 +1,4 @@
+from simple_websocket import Client
 from wampproto.joiner import Joiner, serializers, auth
 
 
@@ -8,11 +9,10 @@ class WAMPSessionJoiner:
 
     def __init__(
         self,
-        socket,
         authenticator: auth.IClientAuthenticator,
         serializer: serializers.Serializer = serializers.JSONSerializer(),
     ):
-        self._socket = socket
+        self._socket = None
         self._authenticator = authenticator
         self._serializer = serializer
 
@@ -27,7 +27,7 @@ class WAMPSessionJoiner:
             raise ValueError("invalid serializer")
 
     def join(self, uri: str, realm: str):
-        self._socket.connect(uri, subprotocol=self.get_subprotocol(serializer=self._serializer))
+        self._socket = Client.connect(uri, subprotocols=self.get_subprotocol(serializer=self._serializer))
 
         j = Joiner(realm, serializer=self._serializer)
         self._socket.send(j.send_hello())
