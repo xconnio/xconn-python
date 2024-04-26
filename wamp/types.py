@@ -4,6 +4,7 @@ from typing import Callable
 
 from simple_websocket import Client
 from wampproto import messages, joiner, serializers
+from wampproto.serializers import serializer
 
 
 @dataclass
@@ -40,15 +41,67 @@ class UnsubscribeRequest:
     subscription_id: int
 
 
-class BaseSession:
+class IBaseSession:
+    @property
+    def id(self) -> int:
+        raise NotImplementedError()
+
+    @property
+    def realm(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def authid(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def authrole(self) -> str:
+        raise NotImplementedError()
+
+    def send(self, data: bytes):
+        raise NotImplementedError()
+
+    def receive(self) -> bytes:
+        raise NotImplementedError()
+
+    def send_message(self, msg: messages.Message):
+        raise NotImplementedError()
+
+    def receive_message(self) -> messages.Message:
+        raise NotImplementedError()
+
+
+class BaseSession(IBaseSession):
     def __init__(self, ws: Client, session_details: joiner.SessionDetails, serializer: serializers.Serializer):
         super().__init__()
         self.ws = ws
         self.session_details = session_details
         self.serializer = serializer
 
+    @property
+    def id(self) -> int:
+        return self.session_details.session_id
+
+    @property
+    def realm(self) -> str:
+        return self.session_details.realm
+
+    @property
+    def authid(self) -> str:
+        return self.session_details.authid
+
+    @property
+    def authrole(self) -> str:
+        return self.session_details.authrole
+
     def send(self, data: bytes):
         self.ws.send(data)
 
     def receive(self) -> bytes:
         return self.ws.receive()
+
+    def send_message(self, msg: messages.Message):
+        self.ws.send(self.serializer.serialize(msg))
+
+    def receive_message(self) -> messages.Message:
+        return self.serializer.deserialize(self.receive())
