@@ -4,7 +4,6 @@ from typing import Callable
 
 from simple_websocket import Client
 from wampproto import messages, joiner, serializers
-from wampproto.serializers import serializer
 
 
 @dataclass
