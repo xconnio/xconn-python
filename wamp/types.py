@@ -2,7 +2,7 @@ from asyncio import Future
 from dataclasses import dataclass
 from typing import Callable
 
-from simple_websocket import Client
+from websockets.sync.connection import Connection
 from wampproto import messages, joiner, serializers
 
 
@@ -71,7 +71,7 @@ class IBaseSession:
 
 
 class BaseSession(IBaseSession):
-    def __init__(self, ws: Client, session_details: joiner.SessionDetails, serializer: serializers.Serializer):
+    def __init__(self, ws: Connection, session_details: joiner.SessionDetails, serializer: serializers.Serializer):
         super().__init__()
         self.ws = ws
         self.session_details = session_details
@@ -97,7 +97,7 @@ class BaseSession(IBaseSession):
         self.ws.send(data)
 
     def receive(self) -> bytes:
-        return self.ws.receive()
+        return self.ws.recv()
 
     def send_message(self, msg: messages.Message):
         self.ws.send(self.serializer.serialize(msg))

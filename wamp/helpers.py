@@ -14,3 +14,14 @@ def get_ws_subprotocol(serializer: serializers.Serializer):
         return MSGPACK_SUBPROTOCOL
     else:
         raise ValueError("invalid serializer")
+
+
+def get_serializer(ws_subprotocol: str) -> serializers.Serializer:
+    if ws_subprotocol == WAMPSessionJoiner.JSON_SUBPROTOCOL:
+        return serializers.JSONSerializer()
+    elif ws_subprotocol == WAMPSessionJoiner.CBOR_SUBPROTOCOL:
+        return serializers.CBORSerializer()
+    elif ws_subprotocol == WAMPSessionJoiner.MSGPACK_SUBPROTOCOL:
+        return serializers.MsgPackSerializer()
+    else:
+        raise ValueError(f"invalid websocket subprotocol {ws_subprotocol}")

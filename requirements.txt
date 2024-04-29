@@ -1,3 +1,3 @@
 ruff
-simple-websocket
+websockets
 wampproto @ git+https://github.com/xconnio/wampproto.py.git

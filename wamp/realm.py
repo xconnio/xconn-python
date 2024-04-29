@@ -21,6 +21,10 @@ class Realm:
         self.broker.remove_session(base.id)
         self.dealer.remove_session(base.id)
 
+    def stop(self):
+        """stop will disconnect all clients."""
+        pass
+
     def receive_message(self, session_id: int, msg: messages.Message):
         match msg.TYPE:
             case messages.Call.TYPE | messages.Yield.TYPE | messages.Register.TYPE | messages.UnRegister.TYPE:
