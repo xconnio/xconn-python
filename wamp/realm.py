@@ -40,5 +40,8 @@ class Realm:
                 for recipient in recipients:
                     client = self.clients[recipient.recipient]
                     client.send_message(recipient.message)
-            case _:
-                pass
+            case messages.Goodbye.TYPE:
+                self.dealer.remove_session(session_id)
+                self.broker.remove_session(session_id)
+                client = self.clients[session_id]
+                client.ws.close()
