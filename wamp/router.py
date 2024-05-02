@@ -17,20 +17,20 @@ class Router:
     def has_realm(self, name: str):
         return name in self.realms
 
-    def attach_client(self, base_session: types.IBaseSession):
+    def attach_client(self, base_session: types.IAsyncBaseSession):
         if base_session.realm not in self.realms:
             raise ValueError(f"cannot attach client to non-existent realm {base_session.realm}")
 
         self.realms[base_session.realm].attach_client(base_session)
 
-    def detach_client(self, base_session: types.IBaseSession):
+    def detach_client(self, base_session: types.IAsyncBaseSession):
         if base_session.realm not in self.realms:
             raise ValueError(f"cannot detach client from non-existent realm {base_session.realm}")
 
         self.realms[base_session.realm].detach_client(base_session)
 
-    def receive_message(self, base_session: types.IBaseSession, msg: messages.Message):
+    async def receive_message(self, base_session: types.IAsyncBaseSession, msg: messages.Message):
         if base_session.realm not in self.realms:
             raise ValueError(f"cannot process message for non-existent realm {base_session.realm}")
 
-        self.realms[base_session.realm].receive_message(base_session.id, msg)
+        await self.realms[base_session.realm].receive_message(base_session.id, msg)

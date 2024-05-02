@@ -1,6 +1,7 @@
 import socket
 from typing import Sequence
 
+from aiohttp import web
 from wampproto import auth, acceptor
 from websockets import ServerProtocol
 from websockets.sync.server import ServerConnection, Subprotocol
@@ -37,3 +38,19 @@ class WAMPSessionAcceptor:
             ws.send(to_send)
             if is_final:
                 return types.BaseSession(ws, a.get_session_details(), serializer)
+
+
+class AIOHttpAcceptor:
+    def __init__(self, authenticator: auth.IServerAuthenticator = None) -> None:
+        self.authenticator = authenticator
+
+    async def accept(self, ws: web.WebSocketResponse) -> types.AIOHttpBaseSession:
+        serializer = helpers.get_serializer(ws.ws_protocol)
+        a = acceptor.Acceptor(serializer=serializer, authenticator=self.authenticator)
+
+        while not ws.closed:
+            msg = await ws.receive()
+            to_send, is_final = a.receive(msg.data)
+            await ws.send_bytes(to_send)
+            if is_final:
+                return types.AIOHttpBaseSession(ws, a.get_session_details(), serializer)
