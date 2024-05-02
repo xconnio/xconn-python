@@ -6,9 +6,6 @@ from wamp import types, helpers
 
 
 class WAMPSessionJoiner:
-    JSON_SUBPROTOCOL = "wamp.2.json"
-    CBOR_SUBPROTOCOL = "wamp.2.cbor"
-    MSGPACK_SUBPROTOCOL = "wamp.2.msgpack"
 
     def __init__(
         self,
