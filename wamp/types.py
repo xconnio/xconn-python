@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import Future
 from dataclasses import dataclass
 from typing import Callable
@@ -15,7 +17,7 @@ class Registration:
 @dataclass
 class RegisterRequest:
     future: Future[Registration]
-    endpoint: Callable[[messages.Invocation], messages.Yield]
+    endpoint: Callable[[Invocation], Result]
 
 
 @dataclass
@@ -32,13 +34,34 @@ class Subscription:
 @dataclass
 class SubscribeRequest:
     future: Future[Subscription]
-    endpoint: Callable[[messages.Event], None]
+    endpoint: Callable[[Event], None]
 
 
 @dataclass
 class UnsubscribeRequest:
-    future: Future[messages.UnSubscribed]
+    future: Future
     subscription_id: int
+
+
+@dataclass
+class Result:
+    args: list | None = None,
+    kwargs: dict | None = None,
+    details: dict | None = None
+
+
+@dataclass
+class Invocation:
+    args: list | None = None,
+    kwargs: dict | None = None,
+    details: dict | None = None
+
+
+@dataclass
+class Event:
+    args: list | None = None,
+    kwargs: dict | None = None,
+    details: dict | None = None
 
 
 class IBasePeer:
@@ -184,7 +207,7 @@ class IAsyncBaseSession:
 
 class AIOHttpBaseSession(IAsyncBaseSession):
     def __init__(
-        self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+            self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails, serializer: serializers.Serializer
     ):
         super().__init__()
         self.ws = ws
