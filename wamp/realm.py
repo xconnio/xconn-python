@@ -43,6 +43,9 @@ class Realm:
             case messages.Goodbye.TYPE:
                 self.dealer.remove_session(session_id)
                 self.broker.remove_session(session_id)
-                client = self.clients[session_id]
+                try:
+                    client = self.clients.pop(session_id)
+                except KeyError:
+                    return
+
                 await client.close()
-                del self.clients[session_id]
