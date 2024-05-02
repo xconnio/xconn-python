@@ -45,9 +45,9 @@ class UnsubscribeRequest:
 
 @dataclass
 class Result:
-    args: list | None
-    kwargs: dict | None
-    details: dict | None
+    args: list | None = None
+    kwargs: dict | None = None
+    details: dict | None = None
 
 
 @dataclass
