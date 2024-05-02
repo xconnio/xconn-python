@@ -2,7 +2,7 @@ import aiohttp
 from aiohttp import web
 
 from wamp.router import Router
-from wamp.wsacceptor import AIOHttpAcceptor
+from wamp.acceptor import AIOHttpAcceptor
 
 
 class Server:
