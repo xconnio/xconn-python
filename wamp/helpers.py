@@ -1,14 +1,16 @@
 from wampproto import serializers
 
-from wamp.wsjoiner import WAMPSessionJoiner
+JSON_SUBPROTOCOL = "wamp.2.json"
+CBOR_SUBPROTOCOL = "wamp.2.cbor"
+MSGPACK_SUBPROTOCOL = "wamp.2.msgpack"
 
 
 def get_ws_subprotocol(serializer: serializers.Serializer):
     if isinstance(serializer, serializers.JSONSerializer):
-        return WAMPSessionJoiner.JSON_SUBPROTOCOL
+        return JSON_SUBPROTOCOL
     elif isinstance(serializer, serializers.CBORSerializer):
-        return WAMPSessionJoiner.CBOR_SUBPROTOCOL
+        return CBOR_SUBPROTOCOL
     elif isinstance(serializer, serializers.MsgPackSerializer):
-        return WAMPSessionJoiner.MSGPACK_SUBPROTOCOL
+        return MSGPACK_SUBPROTOCOL
     else:
         raise ValueError("invalid serializer")
