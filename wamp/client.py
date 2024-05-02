@@ -1,6 +1,7 @@
 from wampproto import auth, serializers
 
-from wamp import joiner, session
+from wamp.joiner import WebsocketsJoiner
+from wamp.session import Session
 
 
 class Client:
@@ -12,8 +13,8 @@ class Client:
         self._authenticator = authenticator
         self._serializer = serializer
 
-    def connect(self, url: str, realm: str) -> session.Session:
-        j = wsjoiner.WebsocketsJoiner(self._authenticator, self._serializer)
+    def connect(self, url: str, realm: str) -> Session:
+        j = WebsocketsJoiner(self._authenticator, self._serializer)
         details = j.join(url, realm)
 
-        return session.Session(details)
+        return Session(details)
