@@ -45,23 +45,23 @@ class UnsubscribeRequest:
 
 @dataclass
 class Result:
-    args: list | None = None,
-    kwargs: dict | None = None,
+    args: list | None = None
+    kwargs: dict | None = None
     details: dict | None = None
 
 
 @dataclass
 class Invocation:
-    args: list | None = None,
-    kwargs: dict | None = None,
-    details: dict | None = None
+    args: list | None
+    kwargs: dict | None
+    details: dict | None
 
 
 @dataclass
 class Event:
-    args: list | None = None,
-    kwargs: dict | None = None,
-    details: dict | None = None
+    args: list | None
+    kwargs: dict | None
+    details: dict | None
 
 
 class IBasePeer:
@@ -207,7 +207,7 @@ class IAsyncBaseSession:
 
 class AIOHttpBaseSession(IAsyncBaseSession):
     def __init__(
-            self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+        self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails, serializer: serializers.Serializer
     ):
         super().__init__()
         self.ws = ws

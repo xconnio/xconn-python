@@ -9,24 +9,19 @@ from websockets.sync.server import ServerConnection, Subprotocol
 from wamp import types, helpers
 
 
-class WAMPSessionAcceptor:
+class WebsocketsAcceptor:
     WSProtocols: Sequence[Subprotocol] = [
         Subprotocol("wamp.2.json"),
         Subprotocol("wamp.2.cbor"),
         Subprotocol("wamp.2.msgpack"),
     ]
 
-    def __init__(
-        self, authenticator: auth.IServerAuthenticator = None, subprotocols: Sequence[Subprotocol] = None
-    ) -> None:
+    def __init__(self, authenticator: auth.IServerAuthenticator = None) -> None:
         self.authenticator = authenticator
-        if subprotocols is None:
-            self.subprotocols = WAMPSessionAcceptor.WSProtocols
-        else:
-            self.subprotocols = subprotocols
+        self.subprotocols = WebsocketsAcceptor.WSProtocols
 
     def accept(self, conn: socket.socket) -> types.BaseSession:
-        ws = ServerConnection(conn, ServerProtocol(subprotocols=WAMPSessionAcceptor.WSProtocols))
+        ws = ServerConnection(conn, ServerProtocol(subprotocols=WebsocketsAcceptor.WSProtocols))
         ws.handshake()
 
         serializer = helpers.get_serializer(ws.subprotocol)

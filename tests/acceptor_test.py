@@ -1,14 +1,15 @@
 from threading import Thread
 import socket
 
-from wampproto import types
+from wampproto.types import SessionDetails
 
-from wamp import wsacceptor, wsjoiner
+from wamp.acceptor import WebsocketsAcceptor
+from wamp.joiner import WebsocketsJoiner
 
 
-def accept(sock: socket.socket, result: [types.SessionDetails]):
+def accept(sock: socket.socket, result: [SessionDetails]):
     conn, _ = sock.accept()
-    a = wsacceptor.WAMPSessionAcceptor()
+    a = WebsocketsAcceptor()
     details = a.accept(conn)
     conn.close()
 
@@ -25,7 +26,7 @@ def test_accept():
     thread = Thread(target=accept, args=(sock, result))
     thread.start()
 
-    j = wsjoiner.WAMPSessionJoiner()
+    j = WebsocketsJoiner()
     client_base_session = j.join(f"ws://localhost:{port}/ws", "realm1")
     client_base_session.ws.close()
 

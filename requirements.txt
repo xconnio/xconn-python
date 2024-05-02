@@ -1,4 +1,3 @@
-ruff
 websockets
 wampproto @ git+https://github.com/xconnio/wampproto.py.git
 aiohttp

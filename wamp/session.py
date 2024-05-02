@@ -77,9 +77,7 @@ class Session:
         else:
             raise ValueError("received unknown message")
 
-    def call(
-            self, procedure: str, args: list[Any] = None, kwargs: dict = None, options: dict = None
-    ) -> types.Result:
+    def call(self, procedure: str, args: list[Any] = None, kwargs: dict = None, options: dict = None) -> types.Result:
         call = messages.Call(self.idgen.next(), procedure, args, kwargs, options)
         data = self.session.send_message(call)
 
@@ -129,9 +127,7 @@ class Session:
 
         f.result()
 
-    def publish(
-            self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None
-    ):
+    def publish(self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None):
         publish = messages.Publish(self.idgen.next(), topic, args, kwargs, options)
         data = self.session.send_message(publish)
 

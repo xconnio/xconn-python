@@ -5,7 +5,7 @@ from wampproto.joiner import Joiner
 from wamp import types, helpers
 
 
-class WAMPSessionJoiner:
+class WebsocketsJoiner:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,
