@@ -6,7 +6,6 @@ from wamp import types, helpers
 
 
 class WAMPSessionJoiner:
-
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,

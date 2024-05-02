@@ -1,3 +1,6 @@
+from asyncio import gather
+
+from wampproto.types import MessageWithRecipient
 from wampproto import dealer, broker, messages
 
 from wamp import types
@@ -32,14 +35,35 @@ class Realm:
                 client = self.clients[recipient.recipient]
                 await client.send_message(recipient.message)
 
-            case messages.Publish.TYPE | messages.Subscribe.TYPE | messages.UnSubscribe.TYPE:
+            case messages.Publish.TYPE:
                 recipients = self.broker.receive_message(session_id, msg)
                 if recipients is None:
+                    # no subscribers AND "acknowledge=False"
                     return
 
+                # if the publish options had "acknowledge=True" the last one
+                # should be PUBLISHED.
+                published: MessageWithRecipient | None = None
+                if isinstance(recipients[-1].message, messages.Published):
+                    published = recipients.pop(-1)
+
+                tasks = []
                 for recipient in recipients:
                     client = self.clients[recipient.recipient]
-                    await client.send_message(recipient.message)
+                    tasks.append(client.send_message(recipient.message))
+
+                await gather(*tasks)
+
+                if published is not None:
+                    client = self.clients[published.recipient]
+                    await client.send_message(published.message)
+
+            case messages.Subscribe.TYPE | messages.UnSubscribe.TYPE:
+                recipients = self.broker.receive_message(session_id, msg)
+                recipient = recipients[0]
+
+                client = self.clients[recipient.recipient]
+                await client.send_message(recipient.message)
             case messages.Goodbye.TYPE:
                 self.dealer.remove_session(session_id)
                 self.broker.remove_session(session_id)
