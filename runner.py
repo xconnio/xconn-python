@@ -1,8 +1,9 @@
 from wamp.router import Router
 from wamp.server import Server
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import uvloop
+
     uvloop.install()
 
     r = Router()

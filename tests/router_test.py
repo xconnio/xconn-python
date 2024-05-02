@@ -1,11 +1,12 @@
 from collections import deque
 
+import pytest
 from wampproto import messages, serializers
 
 from wamp import router, types
 
 
-class MockBaseSession(types.IBaseSession):
+class MockBaseSession(types.IAsyncBaseSession):
     def __init__(self, sid: int, realm: str, authid: str, authrole: str, serializer: serializers.Serializer):
         super().__init__()
         self._id = sid
@@ -36,42 +37,43 @@ class MockBaseSession(types.IBaseSession):
     def authrole(self) -> str:
         return self._authrole
 
-    def send(self, data: bytes):
+    async def send(self, data: bytes):
         self.messages.append(data)
 
-    def receive(self) -> bytes:
+    async def receive(self) -> bytes:
         return self.messages.popleft()
 
-    def send_message(self, msg: messages.Message):
-        self.send(self._serializer.serialize(msg))
+    async def send_message(self, msg: messages.Message):
+        await self.send(self._serializer.serialize(msg))
 
-    def receive_message(self) -> messages.Message:
-        return self._serializer.deserialize(self.receive())
+    async def receive_message(self) -> messages.Message:
+        return self._serializer.deserialize(await self.receive())
 
-    def register(self, procedure: str, r: router.Router):
+    async def register(self, procedure: str, r: router.Router):
         reg = messages.Register(2, procedure)
-        r.receive_message(self, reg)
+        await r.receive_message(self, reg)
 
-        registered = self.receive_message()
+        registered = await self.receive_message()
         assert isinstance(registered, messages.Registered)
 
-    def call(self, procedure: str, r: router.Router):
+    async def call(self, procedure: str, r: router.Router):
         call = messages.Call(3, procedure)
-        r.receive_message(self, call)
+        await r.receive_message(self, call)
 
-        invocation = self._other.receive_message()
+        invocation = await self._other.receive_message()
         assert isinstance(invocation, messages.Invocation)
 
         yield_ = messages.Yield(3)
-        r.receive_message(self._other, yield_)
+        await r.receive_message(self._other, yield_)
 
-        result = self.receive_message()
+        result = await self.receive_message()
         assert isinstance(result, messages.Result)
 
         return result
 
 
-def test_router():
+@pytest.mark.asyncio
+async def test_router():
     caller = MockBaseSession(1, "realm1", "john", "anonymous", serializers.JSONSerializer())
     callee = MockBaseSession(2, "realm1", "alex", "anonymous", serializers.JSONSerializer())
 
@@ -83,11 +85,11 @@ def test_router():
     r.attach_client(callee)
     r.attach_client(caller)
 
-    r.receive_message(caller, messages.Call(1, "foo.bar"))
+    await r.receive_message(caller, messages.Call(1, "foo.bar"))
 
-    err = caller.receive_message()
+    err = await caller.receive_message()
     assert isinstance(err, messages.Error)
     assert err.uri == "wamp.error.no_such_procedure"
 
-    callee.register("foo.bar", r)
-    caller.call("foo.bar", r)
+    await callee.register("foo.bar", r)
+    await caller.call("foo.bar", r)

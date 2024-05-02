@@ -183,8 +183,9 @@ class IAsyncBaseSession:
 
 
 class AIOHttpBaseSession(IAsyncBaseSession):
-    def __init__(self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails,
-                 serializer: serializers.Serializer):
+    def __init__(
+        self, ws: web.WebSocketResponse, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+    ):
         super().__init__()
         self.ws = ws
         self.session_details = session_details
