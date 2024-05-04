@@ -1,16 +1,21 @@
+import asyncio
 import argparse
 import importlib
 
 import uvloop
+from wampproto.serializers import CBORSerializer
 
 from wamp.app import WampApp
 from wamp.router import Router
 from wamp.server import Server
+from wamp.session import AsyncSession
+from wamp.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--host", type=str, default="127.0.0.1")
+    parser.add_argument("--realm", type=str, default="realm1")
     parser.add_argument("APP")
 
     parsed = parser.parse_args()
@@ -27,13 +32,27 @@ if __name__ == "__main__":
     # uvloop makes things fast.
     uvloop.install()
 
-    r = Router()
-    r.add_realm("realm1")
+    router = Router()
+    router.add_realm(parsed.realm)
 
-    # FIXME: attach a local client to the router and register
-    #  all procedures from the app.
-    for procedure, handler in app.procedures.items():
+    serializer = CBORSerializer()
+    client_side_base = ClientSideLocalBaseSession(1, parsed.realm, "local", "local", serializer, router)
+    server_side_base = ServerSideLocalBaseSession(1, parsed.realm, "local", "local", serializer)
+    server_side_base.set_other(client_side_base)
+
+    router.attach_client(server_side_base)
+
+    async def setup():
+        session = AsyncSession(client_side_base)
+        for procedure, handler in app.procedures.items():
+            await session.register(procedure, handler)
+
+        server = Server(router)
+        await server.start(parsed.host, parsed.port, start_loop=False)
+        print(f"Listening for websocket connections on ws://{parsed.host}:{parsed.port}/ws")
+        await asyncio.Event().wait()
+
+    try:
+        asyncio.run(setup())
+    except KeyboardInterrupt:
         pass
-
-    server = Server(r)
-    server.start(parsed.host, parsed.port)

@@ -32,7 +32,15 @@ class Server:
 
         return ws
 
-    def start(self, host: str, port: int):
+    async def start(self, host: str, port: int, start_loop: bool = False):
         app = web.Application()
         app.router.add_get("/ws", self._websocket_handler)
-        web.run_app(app, host=host, port=port)
+
+        if start_loop:
+            web.run_app(app, host=host, port=port)
+        else:
+            runner = web.AppRunner(app)
+            await runner.setup()
+
+            site = aiohttp.web.TCPSite(runner, host=host, port=port)
+            await site.start()
