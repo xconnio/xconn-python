@@ -48,7 +48,7 @@ if __name__ == "__main__":
             await session.register(procedure, handler)
 
         server = Server(router)
-        await server.start(parsed.host, parsed.port)
+        await server.start(parsed.host, parsed.port, start_loop=False)
         print(f"Listening for websocket connections on ws://{parsed.host}:{parsed.port}/ws")
         await asyncio.Event().wait()
 
