@@ -34,9 +34,6 @@ test = [
   "pytest-asyncio",
   "ruff",
 ]
-dev = [
-  "wampproto @ git+https://github.com/xconnio/wampproto.py.git",
-]
 
 [project.scripts]
 "wamp" = "wamp.__main__:main"
