@@ -6,7 +6,7 @@ install_uv:
 setup:
 	make install_uv
 	uv venv
-	uv pip install -r requirements-dev.txt
+	uv pip install .[dev,test]
 
 lint:
 	. .venv/bin/activate; ruff format .
@@ -18,4 +18,4 @@ test:
 	. .venv/bin/activate; pytest -s -v
 
 run:
-	. .venv/bin/activate; python3 -m wamp example:app
+	. .venv/bin/activate; wamp example:app
