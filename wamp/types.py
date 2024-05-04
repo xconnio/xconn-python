@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from asyncio import Future
+from collections import deque
 from dataclasses import dataclass
 from typing import Callable
 
@@ -189,6 +191,10 @@ class IAsyncBaseSession:
     def authrole(self) -> str:
         raise NotImplementedError()
 
+    @property
+    def serializer(self) -> serializers.Serializer:
+        raise NotImplementedError()
+
     async def send(self, data: bytes | str):
         raise NotImplementedError()
 
@@ -212,7 +218,7 @@ class AIOHttpBaseSession(IAsyncBaseSession):
         super().__init__()
         self.ws = ws
         self.session_details = session_details
-        self.serializer = serializer
+        self._serializer = serializer
 
     @property
     def id(self) -> int:
@@ -230,6 +236,10 @@ class AIOHttpBaseSession(IAsyncBaseSession):
     def authrole(self) -> str:
         return self.session_details.authrole
 
+    @property
+    def serializer(self) -> serializers.Serializer:
+        return self._serializer
+
     async def send(self, data: bytes):
         await self.ws.send_bytes(data)
 
@@ -244,3 +254,104 @@ class AIOHttpBaseSession(IAsyncBaseSession):
 
     async def close(self):
         await self.ws.close()
+
+
+class ClientSideLocalBaseSession(IAsyncBaseSession):
+    def __init__(self, sid: int, realm: str, authid: str, authrole: str, serializer: serializers.Serializer, router):
+        super().__init__()
+        self._sid: int = sid
+        self._realm: str = realm
+        self._authid: str = authid
+        self._authrole: str = authrole
+        self._serializer: serializers.Serializer = serializer
+        self._router = router
+
+        self._incoming_messages = deque()
+        self._cond = asyncio.Condition()
+
+    @property
+    def id(self) -> int:
+        return self._sid
+
+    @property
+    def realm(self) -> str:
+        return self._realm
+
+    @property
+    def authid(self) -> str:
+        return self._authid
+
+    @property
+    def authrole(self) -> str:
+        return self._authrole
+
+    @property
+    def serializer(self) -> serializers.Serializer:
+        return self._serializer
+
+    async def send(self, data: bytes | str):
+        await self.send_message(self.serializer.deserialize(data))
+
+    async def receive(self) -> bytes | str:
+        async with self._cond:
+            while not self._incoming_messages:
+                await self._cond.wait()
+
+            return self._incoming_messages.popleft()
+
+    async def send_message(self, msg: messages.Message):
+        await self._router.receive_message(self, msg)
+
+    async def receive_message(self) -> messages.Message:
+        return self.serializer.deserialize(await self.receive())
+
+    async def close(self):
+        pass
+
+    async def feed(self, data: bytes | str):
+        async with self._cond:
+            self._incoming_messages.append(data)
+            self._cond.notify()
+
+
+class ServerSideLocalBaseSession(IAsyncBaseSession):
+    def __init__(self, sid: int, realm: str, authid: str, authrole: str, serializer: serializers.Serializer):
+        super().__init__()
+        self._sid: int = sid
+        self._realm: str = realm
+        self._authid: str = authid
+        self._authrole: str = authrole
+        self._serializer: serializers.Serializer = serializer
+        self._other: ClientSideLocalBaseSession = None
+
+    def set_other(self, other: ClientSideLocalBaseSession):
+        self._other = other
+
+    @property
+    def id(self) -> int:
+        return self._sid
+
+    @property
+    def realm(self) -> str:
+        return self._realm
+
+    @property
+    def authid(self) -> str:
+        return self._authid
+
+    @property
+    def authrole(self) -> str:
+        return self._authrole
+
+    @property
+    def serializer(self) -> serializers.Serializer:
+        return self._serializer
+
+    async def send(self, data: bytes | str):
+        await self._other.feed(data)
+
+    async def send_message(self, msg: messages.Message):
+        await self.send(self.serializer.serialize(msg))
+
+    async def close(self):
+        pass
