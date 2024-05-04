@@ -1,6 +1,7 @@
 import asyncio
 import argparse
 import importlib
+import sys
 
 import uvloop
 from wampproto.serializers import CBORSerializer
@@ -11,7 +12,8 @@ from wamp.server import Server
 from wamp.session import AsyncSession
 from wamp.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--host", type=str, default="127.0.0.1")
@@ -24,6 +26,8 @@ if __name__ == "__main__":
     if len(split) != 2:
         raise RuntimeError("invalid app argument, must be of format: module:instance")
 
+    # TODO: find a better, reliable way
+    sys.path.append(".")
     module = importlib.import_module(split[0])
     app: WampApp = getattr(module, split[1])
     if not isinstance(app, WampApp):
@@ -56,3 +60,7 @@ if __name__ == "__main__":
         asyncio.run(setup())
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == "__main__":
+    main()
