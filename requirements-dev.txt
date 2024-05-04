@@ -1,5 +1,0 @@
-ruff
-pytest
-pytest-asyncio
-
--r requirements.txt
