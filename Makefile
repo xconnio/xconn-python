@@ -16,3 +16,6 @@ check-lint:
 
 test:
 	. .venv/bin/activate; pytest -s -v
+
+run:
+	. .venv/bin/activate; python3 -m wamp example:app
