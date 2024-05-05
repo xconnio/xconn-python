@@ -1,6 +1,6 @@
 from wampproto import messages
 
-from wamp import realm, types
+from xconn import realm, types
 
 
 class Router:

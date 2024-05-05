@@ -6,7 +6,7 @@ from wampproto import auth, acceptor
 from websockets import ServerProtocol
 from websockets.sync.server import ServerConnection, Subprotocol
 
-from wamp import types, helpers
+from xconn import types, helpers
 
 
 class WebsocketsAcceptor:

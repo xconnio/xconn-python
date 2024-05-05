@@ -1,4 +1,4 @@
-name: wamp.py CI
+name: XConn Python CI
 
 on: [push, pull_request]
 

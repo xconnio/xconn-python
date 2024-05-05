@@ -2,7 +2,7 @@ from websockets.sync.client import connect
 from wampproto import joiner, serializers, auth
 from wampproto.joiner import Joiner
 
-from wamp import types, helpers
+from xconn import types, helpers
 
 
 class WebsocketsJoiner:

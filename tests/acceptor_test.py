@@ -3,8 +3,8 @@ import socket
 
 from wampproto.types import SessionDetails
 
-from wamp.acceptor import WebsocketsAcceptor
-from wamp.joiner import WebsocketsJoiner
+from xconn.acceptor import WebsocketsAcceptor
+from xconn.joiner import WebsocketsJoiner
 
 
 def accept(sock: socket.socket, result: [SessionDetails]):

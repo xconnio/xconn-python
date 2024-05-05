@@ -6,11 +6,11 @@ import sys
 import uvloop
 from wampproto.serializers import CBORSerializer
 
-from wamp.app import WampApp
-from wamp.router import Router
-from wamp.server import Server
-from wamp.session import AsyncSession
-from wamp.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
+from xconn.app import WampApp
+from xconn.router import Router
+from xconn.server import Server
+from xconn.session import AsyncSession
+from xconn.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
 
 
 def main():

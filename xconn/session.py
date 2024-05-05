@@ -5,7 +5,7 @@ from typing import Callable, Any
 
 from wampproto import messages, idgen, session
 
-from wamp import types
+from xconn import types
 
 
 class Session:

@@ -9,13 +9,13 @@ setup:
 	uv pip install .[test]
 
 lint:
-	. .venv/bin/activate; ruff format .
+	./.venv/bin/ruff format .
 
 check-lint:
-	. .venv/bin/activate; ruff check .
+	./.venv/bin/ruff check .
 
 test:
-	. .venv/bin/activate; pytest -s -v
+	./.venv/bin/pytest -s -v
 
 run:
-	. .venv/bin/activate; wamp example:app
+	./.venv/bin/python -m xconn example:app

@@ -3,7 +3,7 @@ from asyncio import gather
 from wampproto.types import MessageWithRecipient
 from wampproto import dealer, broker, messages
 
-from wamp import types
+from xconn import types
 
 
 class Realm:

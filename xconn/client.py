@@ -1,7 +1,7 @@
 from wampproto import auth, serializers
 
-from wamp.joiner import WebsocketsJoiner
-from wamp.session import Session
+from xconn.joiner import WebsocketsJoiner
+from xconn.session import Session
 
 
 class Client:

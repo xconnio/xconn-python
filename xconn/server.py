@@ -1,8 +1,8 @@
 import aiohttp
 from aiohttp import web
 
-from wamp.router import Router
-from wamp.acceptor import AIOHttpAcceptor
+from xconn.router import Router
+from xconn.acceptor import AIOHttpAcceptor
 
 
 class Server:
