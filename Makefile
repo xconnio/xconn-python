@@ -18,4 +18,4 @@ test:
 	./.venv/bin/pytest -s -v
 
 run:
-	./.venv/bin/python -m xconn example:app
+	./.venv/bin/xconn example:app
