@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--realm", type=str, default="realm1")
+    parser.add_argument("--directory", type=str, default=".")
     parser.add_argument("APP")
 
     parsed = parser.parse_args()
@@ -27,7 +28,7 @@ def main():
         raise RuntimeError("invalid app argument, must be of format: module:instance")
 
     # TODO: find a better, reliable way
-    sys.path.append(".")
+    sys.path.append(parsed.directory)
     module = importlib.import_module(split[0])
     app: WampApp = getattr(module, split[1])
     if not isinstance(app, WampApp):
