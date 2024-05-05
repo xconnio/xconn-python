@@ -51,6 +51,7 @@ def main():
         session = AsyncSession(client_side_base)
         for procedure, handler in app.procedures.items():
             await session.register(procedure, handler)
+            print(f"registered procedure {procedure}")
 
         server = Server(router)
         await server.start(parsed.host, parsed.port, start_loop=False)
