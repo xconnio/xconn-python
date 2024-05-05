@@ -63,7 +63,7 @@ class MockBaseSession(types.IAsyncBaseSession):
         invocation = await self._other.receive_message()
         assert isinstance(invocation, messages.Invocation)
 
-        yield_ = messages.Yield(3)
+        yield_ = messages.Yield(invocation.request_id)
         await r.receive_message(self._other, yield_)
 
         result = await self.receive_message()
