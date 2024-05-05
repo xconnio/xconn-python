@@ -1,8 +1,8 @@
 from datetime import date
 import time
 
-from wamp.app import WampApp
-from wamp.types import Invocation, Result
+from xconn.app import WampApp
+from xconn.types import Invocation, Result
 
 app = WampApp()
 

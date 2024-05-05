@@ -3,7 +3,7 @@ from collections import deque
 import pytest
 from wampproto import messages, serializers
 
-from wamp import router, types
+from xconn import router, types
 
 
 class MockBaseSession(types.IAsyncBaseSession):
