@@ -1,7 +1,7 @@
-from xconn.app import WampApp
+from xconn.app import XConnApp
 from xconn.types import Invocation, Result
 
-app = WampApp()
+app = XConnApp()
 
 
 @app.register("foo.bar.echo")

@@ -1,11 +1,11 @@
 from datetime import date
 import time
 
-from xconn.app import WampApp
+from xconn.app import XConnApp
 from xconn.types import Invocation, Result
 from included_app import app as included_app
 
-app = WampApp()
+app = XConnApp()
 app.include_app(included_app, prefix="test.")
 
 

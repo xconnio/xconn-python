@@ -13,7 +13,7 @@ class IApp:
         raise NotImplementedError()
 
 
-class WampApp(IApp):
+class XConnApp(IApp):
     def __init__(self):
         super().__init__()
         self._procedures = {}

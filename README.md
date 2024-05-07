@@ -10,11 +10,12 @@ uv pip install xconn
 ./.venv/bin/xconn
 ```
 writing your first API is quick
+
 ```python
-from xconn.app import WampApp
+from xconn.app import XConnApp
 from xconn.types import Invocation, Result
 
-app = WampApp()
+app = XConnApp()
 
 
 @app.register("io.xconn.echo")
@@ -27,4 +28,4 @@ om26er@office-pc-1:~/$ ./.venv/bin/xconn main:app
 registered procedure io.xconn.echo
 Listening for websocket connections on ws://127.0.0.1:8080/ws
 ```
-looks at examples directory for more [examples](examples)
+look at examples directory for more [examples](examples)

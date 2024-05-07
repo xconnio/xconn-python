@@ -6,7 +6,7 @@ import sys
 import uvloop
 from wampproto.serializers import CBORSerializer
 
-from xconn.app import WampApp
+from xconn.app import XConnApp
 from xconn.router import Router
 from xconn.server import Server
 from xconn.session import AsyncSession
@@ -30,8 +30,8 @@ def main():
     # TODO: find a better, reliable way
     sys.path.append(parsed.directory)
     module = importlib.import_module(split[0])
-    app: WampApp = getattr(module, split[1])
-    if not isinstance(app, WampApp):
+    app: XConnApp = getattr(module, split[1])
+    if not isinstance(app, XConnApp):
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     # uvloop makes things fast.
