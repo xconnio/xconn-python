@@ -3,8 +3,10 @@ import time
 
 from xconn.app import WampApp
 from xconn.types import Invocation, Result
+from included_app import app as included_app
 
 app = WampApp()
+app.include_app(included_app, prefix="test.")
 
 
 @app.register("io.xconn.echo")
