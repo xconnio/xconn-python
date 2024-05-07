@@ -1,20 +1,22 @@
 import aiohttp
 from aiohttp import web
+from wampproto.auth import IServerAuthenticator
 
 from xconn.router import Router
 from xconn.acceptor import AIOHttpAcceptor
 
 
 class Server:
-    def __init__(self, router: Router):
+    def __init__(self, router: Router, authenticator: IServerAuthenticator = None):
         self.router = router
+        self.authenticator = authenticator
 
     async def _websocket_handler(self, request):
         ws = web.WebSocketResponse(protocols=["wamp.2.json", "wamp.2.cbor", "wamp.2.msgpack"])
         # upgrade this connection to websocket.
         await ws.prepare(request)
 
-        acceptor = AIOHttpAcceptor()
+        acceptor = AIOHttpAcceptor(self.authenticator)
         base_session = await acceptor.accept(ws)
         self.router.attach_client(base_session)
 
