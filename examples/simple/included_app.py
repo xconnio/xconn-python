@@ -1,4 +1,4 @@
-from xconn.app import XConnApp
+from xconn import XConnApp
 from xconn.types import Invocation, Result
 
 app = XConnApp()

@@ -1,8 +1,9 @@
 from datetime import date
 import time
 
-from xconn.app import XConnApp
+from xconn import XConnApp
 from xconn.types import Invocation, Result
+
 from included_app import app as included_app
 
 app = XConnApp()
