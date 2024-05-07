@@ -18,4 +18,4 @@ test:
 	./.venv/bin/pytest -s -v
 
 run:
-	./.venv/bin/xconn example:app
+	./.venv/bin/xconn example:app --directory examples/simple
