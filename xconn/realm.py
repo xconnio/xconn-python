@@ -37,8 +37,8 @@ class Realm:
 
             case messages.Publish.TYPE:
                 recipients = self.broker.receive_message(session_id, msg)
-                if recipients is None:
-                    # no subscribers AND "acknowledge=False"
+                if len(recipients) == 0:
+                    # usually means no subscribers AND "acknowledge=False"
                     return
 
                 # if the publish options had "acknowledge=True" the last one
@@ -47,12 +47,13 @@ class Realm:
                 if isinstance(recipients[-1].message, messages.Published):
                     published = recipients.pop(-1)
 
-                tasks = []
-                for recipient in recipients:
-                    client = self.clients[recipient.recipient]
-                    tasks.append(client.send_message(recipient.message))
+                if len(recipients) != 0:
+                    tasks = []
+                    for recipient in recipients:
+                        client = self.clients[recipient.recipient]
+                        tasks.append(client.send_message(recipient.message))
 
-                await gather(*tasks)
+                    await gather(*tasks)
 
                 if published is not None:
                     client = self.clients[published.recipient]
