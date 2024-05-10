@@ -1,6 +1,5 @@
 from asyncio import gather
 
-from wampproto.types import MessageWithRecipient
 from wampproto import dealer, broker, messages
 
 from xconn import types
@@ -36,33 +35,22 @@ class Realm:
                 await client.send_message(recipient.message)
 
             case messages.Publish.TYPE:
-                recipients = self.broker.receive_message(session_id, msg)
-                if len(recipients) == 0:
-                    # usually means no subscribers AND "acknowledge=False"
-                    return
+                publication = self.broker.receive_publish(session_id, msg)
 
-                # if the publish options had "acknowledge=True" the last one
-                # should be PUBLISHED.
-                published: MessageWithRecipient | None = None
-                if isinstance(recipients[-1].message, messages.Published):
-                    published = recipients.pop(-1)
-
-                if len(recipients) != 0:
+                if len(publication.recipients) != 0:
                     tasks = []
-                    for recipient in recipients:
-                        client = self.clients[recipient.recipient]
-                        tasks.append(client.send_message(recipient.message))
+                    for recipient in publication.recipients:
+                        client = self.clients[recipient]
+                        tasks.append(client.send_message(publication.event))
 
                     await gather(*tasks)
 
-                if published is not None:
-                    client = self.clients[published.recipient]
-                    await client.send_message(published.message)
+                if publication.ack is not None:
+                    client = self.clients[publication.ack.recipient]
+                    await client.send_message(publication.ack.message)
 
             case messages.Subscribe.TYPE | messages.UnSubscribe.TYPE:
-                recipients = self.broker.receive_message(session_id, msg)
-                recipient = recipients[0]
-
+                recipient = self.broker.receive_message(session_id, msg)
                 client = self.clients[recipient.recipient]
                 await client.send_message(recipient.message)
             case messages.Goodbye.TYPE:
