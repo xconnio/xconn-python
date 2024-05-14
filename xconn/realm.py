@@ -1,6 +1,7 @@
 from asyncio import gather
 
 from wampproto import dealer, broker, messages
+from wampproto.types import SessionDetails
 
 from xconn import types
 
@@ -15,8 +16,10 @@ class Realm:
 
     def attach_client(self, base: types.IAsyncBaseSession):
         self.clients[base.id] = base
-        self.dealer.add_session(base.id)
-        self.broker.add_session(base.id)
+
+        details = SessionDetails(base.id, base.realm, base.authid, base.authrole)
+        self.dealer.add_session(details)
+        self.broker.add_session(details)
 
     def detach_client(self, base: types.IAsyncBaseSession):
         del self.clients[base.id]
