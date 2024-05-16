@@ -219,6 +219,12 @@ class AIOHttpBaseSession(IAsyncBaseSession):
         self.ws = ws
         self.session_details = session_details
         self._serializer = serializer
+        if serializer is None or isinstance(serializer, serializers.JSONSerializer):
+            self._send_func = ws.send_str
+            self._receive_func = ws.receive_str
+        else:
+            self._send_func = ws.send_bytes
+            self._receive_func = ws.receive_bytes
 
     @property
     def id(self) -> int:
@@ -241,10 +247,10 @@ class AIOHttpBaseSession(IAsyncBaseSession):
         return self._serializer
 
     async def send(self, data: bytes):
-        await self.ws.send_bytes(data)
+        await self._send_func(data)
 
     async def receive(self) -> bytes:
-        return await self.ws.receive_bytes()
+        return await self._receive_func()
 
     async def send_message(self, msg: messages.Message):
         await self.send(self.serializer.serialize(msg))
