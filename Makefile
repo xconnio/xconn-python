@@ -27,3 +27,10 @@ publish-build:
 	@echo ========================================================
 	@echo
 	@echo now run .venv/bin/twine upload dist/newly_created.tar.gz
+
+
+run-docs:
+	mkdocs serve
+
+build-docs:
+	mkdocs build
