@@ -8,10 +8,6 @@ on:
     paths:
       - docs/**
 
-  pull_request:
-    branches:
-    - main
-
 permissions:
   id-token: write
   contents: read
@@ -22,3 +18,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install mkdocs
+        run: pip install mkdocs-material[imaging]
+
+      - name: Build Docs
+        run: make build-docs
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy static site to S3 bucket
+        run: aws s3 sync ./site/ s3://${{ secrets.AWS_BUCKET }} --delete

@@ -6,7 +6,7 @@ XConn is available as [`xconn`](https://pypi.org/project/xconn/) on PyPI:
 pip install xconn
 ```
 
-For **macOS Homebrew** and **Linuxbrew** users, XConn will be available as [`xconn`](https://formulae.brew.sh/formula/xconn)
+For **macOS Homebrew** and **Linuxbrew** users, XConn will be available soon as [`xconn`](https://formulae.brew.sh/formula/xconn)
 on Homebrew:
 
 ```shell
