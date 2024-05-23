@@ -33,4 +33,8 @@ run-docs:
 	mkdocs serve
 
 build-docs:
-	mkdocs build
+	mkdir -p site/xconn/
+	mkdocs build -d site/xconn/python
+
+clean-docs:
+	rm -rf site/
