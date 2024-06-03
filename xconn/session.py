@@ -57,7 +57,9 @@ class Session:
         elif isinstance(msg, messages.Invocation):
             endpoint = self.registrations[msg.registration_id]
             result = endpoint(msg)
-            data = self.session.send_message(messages.Yield(msg.request_id, result.args, result.kwargs, result.details))
+            data = self.session.send_message(
+                messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+            )
             self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
@@ -79,7 +81,7 @@ class Session:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, args: list[Any] = None, kwargs: dict = None, options: dict = None) -> types.Result:
-        call = messages.Call(self.idgen.next(), procedure, args, kwargs, options)
+        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options))
         data = self.session.send_message(call)
 
         f = Future()
@@ -89,7 +91,7 @@ class Session:
         return f.result()
 
     def register(self, procedure: str, endpoint: Callable[[types.Invocation], types.Result]) -> types.Registration:
-        register = messages.Register(self.idgen.next(), procedure)
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
@@ -99,7 +101,7 @@ class Session:
         return f.result()
 
     def unregister(self, reg: types.Registration):
-        unregister = messages.UnRegister(self.idgen.next(), reg.registration_id)
+        unregister = messages.UnRegister(messages.UnRegisterFields(self.idgen.next(), reg.registration_id))
         data = self.session.send_message(unregister)
 
         f: Future = Future()
@@ -109,7 +111,7 @@ class Session:
         f.result()
 
     def subscribe(self, topic: str, endpoint: Callable[[types.Event], None]) -> types.Subscription:
-        subscribe = messages.Subscribe(self.idgen.next(), topic)
+        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic))
         data = self.session.send_message(subscribe)
 
         f: Future[types.Subscription] = Future()
@@ -119,7 +121,7 @@ class Session:
         return f.result()
 
     def unsubscribe(self, sub: types.Subscription):
-        unsubscribe = messages.UnSubscribe(self.idgen.next(), sub.subscription_id)
+        unsubscribe = messages.UnSubscribe(messages.UnSubscribeFields(self.idgen.next(), sub.subscription_id))
         data = self.session.send_message(unsubscribe)
 
         f: Future = Future()
@@ -129,7 +131,7 @@ class Session:
         f.result()
 
     def publish(self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None):
-        publish = messages.Publish(self.idgen.next(), topic, args, kwargs, options)
+        publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
         data = self.session.send_message(publish)
 
         if options is not None and options.get("acknowledge", True):
@@ -191,7 +193,9 @@ class AsyncSession:
         elif isinstance(msg, messages.Invocation):
             endpoint = self.registrations[msg.registration_id]
             result = endpoint(msg)
-            data = self.session.send_message(messages.Yield(msg.request_id, result.args, result.kwargs, result.details))
+            data = self.session.send_message(
+                messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+            )
             await self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
@@ -215,7 +219,7 @@ class AsyncSession:
     async def register(
         self, procedure: str, endpoint: Callable[[types.Invocation], types.Result]
     ) -> Future[types.Registration]:
-        register = messages.Register(self.idgen.next(), procedure, options={})
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options={}))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
