@@ -20,8 +20,8 @@ class Server:
             acceptor = AIOHttpAcceptor(self.authenticator)
             base_session = await acceptor.accept(ws)
             self.router.attach_client(base_session)
-        except Exception as e:
-            print(e)
+        except Exception:
+            await ws.close()
 
         while not ws.closed:
             msg = await ws.receive()
