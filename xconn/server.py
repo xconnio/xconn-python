@@ -16,9 +16,12 @@ class Server:
         # upgrade this connection to websocket.
         await ws.prepare(request)
 
-        acceptor = AIOHttpAcceptor(self.authenticator)
-        base_session = await acceptor.accept(ws)
-        self.router.attach_client(base_session)
+        try:
+            acceptor = AIOHttpAcceptor(self.authenticator)
+            base_session = await acceptor.accept(ws)
+            self.router.attach_client(base_session)
+        except Exception:
+            await ws.close()
 
         while not ws.closed:
             msg = await ws.receive()

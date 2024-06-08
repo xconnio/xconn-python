@@ -2,7 +2,7 @@ import socket
 from typing import Sequence
 
 from aiohttp import web
-from wampproto import auth, acceptor, serializers
+from wampproto import auth, acceptor, serializers, messages
 from websockets import ServerProtocol
 from websockets.sync.server import ServerConnection, Subprotocol
 
@@ -32,6 +32,10 @@ class WebsocketsAcceptor:
             to_send, is_final = a.receive(data)
             ws.send(to_send)
             if is_final:
+                if a.is_aborted():
+                    abort: messages.Abort = serializer.deserialize(to_send)
+                    raise Exception(abort.reason)
+
                 return types.BaseSession(ws, a.get_session_details(), serializer)
 
 
@@ -55,4 +59,8 @@ class AIOHttpAcceptor:
             to_send, is_final = a.receive(msg)
             await send_func(to_send)
             if is_final:
+                if a.is_aborted():
+                    abort: messages.Abort = serializer.deserialize(to_send)
+                    raise Exception(abort.reason)
+
                 return types.AIOHttpBaseSession(ws, a.get_session_details(), serializer)
