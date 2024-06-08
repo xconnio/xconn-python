@@ -50,20 +50,20 @@ class MockBaseSession(types.IAsyncBaseSession):
         return self._serializer.deserialize(await self.receive())
 
     async def register(self, procedure: str, r: router.Router):
-        reg = messages.Register(2, procedure)
+        reg = messages.Register(messages.RegisterFields(2, procedure))
         await r.receive_message(self, reg)
 
         registered = await self.receive_message()
         assert isinstance(registered, messages.Registered)
 
     async def call(self, procedure: str, r: router.Router):
-        call = messages.Call(3, procedure)
+        call = messages.Call(messages.CallFields(3, procedure))
         await r.receive_message(self, call)
 
         invocation = await self._other.receive_message()
         assert isinstance(invocation, messages.Invocation)
 
-        yield_ = messages.Yield(invocation.request_id)
+        yield_ = messages.Yield(messages.YieldFields(invocation.request_id))
         await r.receive_message(self._other, yield_)
 
         result = await self.receive_message()
@@ -85,7 +85,7 @@ async def test_router():
     r.attach_client(callee)
     r.attach_client(caller)
 
-    await r.receive_message(caller, messages.Call(1, "foo.bar"))
+    await r.receive_message(caller, messages.Call(messages.CallFields(1, "foo.bar")))
 
     err = await caller.receive_message()
     assert isinstance(err, messages.Error)
