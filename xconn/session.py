@@ -1,9 +1,10 @@
+import time
 import asyncio
 from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
 
-from wampproto import messages, idgen, session
+from wampproto import messages, idgen, session, uris
 
 from xconn import types
 
@@ -21,6 +22,8 @@ class Session:
         self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
         self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
+
+        self.goodbye_request = Future()
 
         # ID generator
         self.idgen = idgen.SessionScopeIDGenerator()
@@ -77,6 +80,8 @@ class Session:
             endpoint(types.Event(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Error):
             pass
+        elif isinstance(msg, messages.Goodbye):
+            self.goodbye_request.set_result(None)
         else:
             raise ValueError("received unknown message")
 
@@ -141,6 +146,24 @@ class Session:
             return f.result()
 
         self.base_session.send(data)
+
+    def leave(self):
+        self.goodbye_request = Future()
+
+        goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_REALM))
+        data = self.session.send_message(goodbye)
+        self.base_session.send(data)
+
+        timeout = 10
+        start_time = time.time()
+
+        while not self.goodbye_request.done():
+            if time.time() - start_time > timeout:
+                raise TimeoutError("leave timeout")
+
+            time.sleep(0.5)
+
+        return self.goodbye_request.result()
 
 
 class AsyncSession:
