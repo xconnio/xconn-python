@@ -1,4 +1,3 @@
-import time
 import asyncio
 from concurrent.futures import Future
 from threading import Thread
@@ -154,16 +153,7 @@ class Session:
         data = self.session.send_message(goodbye)
         self.base_session.send(data)
 
-        timeout = 10
-        start_time = time.time()
-
-        while not self.goodbye_request.done():
-            if time.time() - start_time > timeout:
-                raise TimeoutError("leave timeout")
-
-            time.sleep(0.5)
-
-        return self.goodbye_request.result()
+        return self.goodbye_request.result(timeout=10)
 
 
 class AsyncSession:
