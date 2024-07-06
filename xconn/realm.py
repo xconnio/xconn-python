@@ -32,7 +32,7 @@ class Realm:
 
     async def receive_message(self, session_id: int, msg: messages.Message):
         match msg.TYPE:
-            case messages.Call.TYPE | messages.Yield.TYPE | messages.Register.TYPE | messages.UnRegister.TYPE:
+            case messages.Call.TYPE | messages.Yield.TYPE | messages.Register.TYPE | messages.Unregister.TYPE:
                 recipient = self.dealer.receive_message(session_id, msg)
                 client = self.clients[recipient.recipient]
                 await client.send_message(recipient.message)
@@ -52,7 +52,7 @@ class Realm:
                     client = self.clients[publication.ack.recipient]
                     await client.send_message(publication.ack.message)
 
-            case messages.Subscribe.TYPE | messages.UnSubscribe.TYPE:
+            case messages.Subscribe.TYPE | messages.Unsubscribe.TYPE:
                 recipient = self.broker.receive_message(session_id, msg)
                 client = self.clients[recipient.recipient]
                 await client.send_message(recipient.message)
