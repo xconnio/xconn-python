@@ -49,7 +49,7 @@ class Session:
             request = self.register_requests.pop(msg.request_id)
             self.registrations[msg.registration_id] = request.endpoint
             request.future.set_result(types.Registration(msg.registration_id))
-        elif isinstance(msg, messages.UnRegistered):
+        elif isinstance(msg, messages.Unregistered):
             request = self.unregister_requests.pop(msg.request_id)
             del self.registrations[request.registration_id]
             request.future.set_result(None)
@@ -67,7 +67,7 @@ class Session:
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
             request.future.set_result(types.Subscription(msg.subscription_id))
-        elif isinstance(msg, messages.UnSubscribed):
+        elif isinstance(msg, messages.Unsubscribed):
             request = self.unsubscribe_requests.pop(msg.request_id)
             del self.subscriptions[request.subscription_id]
             request.future.set_result(None)
@@ -105,7 +105,7 @@ class Session:
         return f.result()
 
     def unregister(self, reg: types.Registration):
-        unregister = messages.UnRegister(messages.UnRegisterFields(self.idgen.next(), reg.registration_id))
+        unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
         data = self.session.send_message(unregister)
 
         f: Future = Future()
@@ -125,7 +125,7 @@ class Session:
         return f.result()
 
     def unsubscribe(self, sub: types.Subscription):
-        unsubscribe = messages.UnSubscribe(messages.UnSubscribeFields(self.idgen.next(), sub.subscription_id))
+        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.idgen.next(), sub.subscription_id))
         data = self.session.send_message(unsubscribe)
 
         f: Future = Future()
@@ -196,7 +196,7 @@ class AsyncSession:
             request = self.register_requests.pop(msg.request_id)
             self.registrations[msg.registration_id] = request.endpoint
             request.future.set_result(types.Registration(msg.registration_id))
-        elif isinstance(msg, messages.UnRegistered):
+        elif isinstance(msg, messages.Unregistered):
             request = self.unregister_requests.pop(msg.request_id)
             del self.registrations[request.registration_id]
             request.future.set_result(None)
@@ -214,7 +214,7 @@ class AsyncSession:
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
             request.future.set_result(types.Subscription(msg.subscription_id))
-        elif isinstance(msg, messages.UnSubscribed):
+        elif isinstance(msg, messages.Unsubscribed):
             request = self.unsubscribe_requests.pop(msg.request_id)
             del self.subscriptions[request.subscription_id]
             request.future.set_result(None)
