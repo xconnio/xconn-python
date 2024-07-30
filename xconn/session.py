@@ -5,7 +5,7 @@ from typing import Callable, Any
 
 from wampproto import messages, idgen, session, uris
 
-from xconn import types
+from xconn import types, exception
 
 
 class Session:
@@ -209,6 +209,10 @@ class AsyncSession:
                 result = endpoint(msg)
                 msg_to_send = messages.Yield(
                     messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details)
+                )
+            except exception.ApplicationError as e:
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, e.message, args=list(e.args), kwargs=e.kwargs)
                 )
             except Exception as e:
                 msg_to_send = messages.Error(
