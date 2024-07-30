@@ -5,7 +5,7 @@ from typing import Callable, Any
 
 from wampproto import messages, idgen, session, uris
 
-from xconn import types
+from xconn import types, exception
 
 
 class Session:
@@ -205,10 +205,21 @@ class AsyncSession:
             request.set_result(types.Result(msg.args, msg.kwargs, msg.options))
         elif isinstance(msg, messages.Invocation):
             endpoint = self.registrations[msg.registration_id]
-            result = endpoint(msg)
-            data = self.session.send_message(
-                messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-            )
+            try:
+                result = endpoint(msg)
+                msg_to_send = messages.Yield(
+                    messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details)
+                )
+            except exception.ApplicationError as e:
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, e.message, args=list(e.args), kwargs=e.kwargs)
+                )
+            except Exception as e:
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, "wamp.error.runtime_error", args=[e])
+                )
+
+            data = self.session.send_message(msg_to_send)
             await self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
