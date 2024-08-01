@@ -216,7 +216,7 @@ class AsyncSession:
                 )
             except Exception as e:
                 msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, "wamp.error.runtime_error", args=[e])
+                    messages.ErrorFields(msg.TYPE, msg.request_id, "wamp.error.runtime_error", args=[str(e)])
                 )
 
             data = self.session.send_message(msg_to_send)

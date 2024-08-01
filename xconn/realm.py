@@ -32,7 +32,13 @@ class Realm:
 
     async def receive_message(self, session_id: int, msg: messages.Message):
         match msg.TYPE:
-            case messages.Call.TYPE | messages.Yield.TYPE | messages.Register.TYPE | messages.Unregister.TYPE:
+            case (
+                messages.Call.TYPE
+                | messages.Yield.TYPE
+                | messages.Register.TYPE
+                | messages.Unregister.TYPE
+                | messages.Error.TYPE
+            ):
                 recipient = self.dealer.receive_message(session_id, msg)
                 client = self.clients[recipient.recipient]
                 await client.send_message(recipient.message)
