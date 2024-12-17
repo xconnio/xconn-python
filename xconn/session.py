@@ -85,7 +85,7 @@ class Session:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, args: list[Any] = None, kwargs: dict = None, options: dict = None) -> types.Result:
-        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options))
+        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
         data = self.session.send_message(call)
 
         f = Future()
@@ -94,8 +94,10 @@ class Session:
 
         return f.result()
 
-    def register(self, procedure: str, endpoint: Callable[[types.Invocation], types.Result]) -> types.Registration:
-        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure))
+    def register(
+        self, procedure: str, endpoint: Callable[[types.Invocation], types.Result], options: dict = None
+    ) -> types.Registration:
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
@@ -114,8 +116,10 @@ class Session:
 
         f.result()
 
-    def subscribe(self, topic: str, endpoint: Callable[[types.Event], None]) -> types.Subscription:
-        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic))
+    def subscribe(
+        self, topic: str, endpoint: Callable[[types.Event], None], options: dict = None
+    ) -> types.Subscription:
+        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
 
         f: Future[types.Subscription] = Future()
@@ -241,9 +245,9 @@ class AsyncSession:
             raise ValueError("received unknown message")
 
     async def register(
-        self, procedure: str, endpoint: Callable[[types.Invocation], types.Result]
+        self, procedure: str, endpoint: Callable[[types.Invocation], types.Result], options: dict = None
     ) -> Future[types.Registration]:
-        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options={}))
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
