@@ -2,8 +2,12 @@ class ApplicationError(Exception):
     def __init__(self, message: str, args: list | None = None, kwargs: dict | None = None):
         super().__init__(message)
         self.message = message
-        self.args = args
+        self.__args = args
         self.kwargs = kwargs
+
+    @property
+    def args(self):
+        return self.__args
 
     def __str__(self):
         err = self.message
