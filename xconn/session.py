@@ -95,13 +95,13 @@ class Session:
         return f.result()
 
     def register(
-        self, procedure: str, endpoint: Callable[[types.Invocation], types.Result], options: dict = None
+        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
     ) -> types.Registration:
         register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, endpoint)
+        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
         self.base_session.send(data)
 
         return f.result()
@@ -117,13 +117,13 @@ class Session:
         f.result()
 
     def subscribe(
-        self, topic: str, endpoint: Callable[[types.Event], None], options: dict = None
+        self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None
     ) -> types.Subscription:
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
 
         f: Future[types.Subscription] = Future()
-        self.subscribe_requests[subscribe.request_id] = types.SubscribeRequest(f, endpoint)
+        self.subscribe_requests[subscribe.request_id] = types.SubscribeRequest(f, event_handler)
         self.base_session.send(data)
 
         return f.result()
@@ -245,13 +245,13 @@ class AsyncSession:
             raise ValueError("received unknown message")
 
     async def register(
-        self, procedure: str, endpoint: Callable[[types.Invocation], types.Result], options: dict = None
+        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
     ) -> Future[types.Registration]:
         register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
         f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, endpoint)
+        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
         await self.base_session.send(data)
 
         return f
