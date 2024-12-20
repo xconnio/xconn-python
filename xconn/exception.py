@@ -14,3 +14,8 @@ class ApplicationError(Exception):
             kwargs = ", ".join(f"{key}={value}" for key, value in self.kwargs.items())
             err += f": {kwargs}"
         return err
+
+
+class ProtocolError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
