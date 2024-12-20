@@ -1,6 +1,6 @@
 class ApplicationError(Exception):
-    def __init__(self, message: str, args: list | None = None, kwargs: dict | None = None):
-        super().__init__(message)
+    def __init__(self, message: str, *args, **kwargs):
+        super().__init__(*args)
         self.message = message
         self.args = args
         self.kwargs = kwargs
