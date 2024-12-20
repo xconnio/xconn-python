@@ -1,4 +1,7 @@
 from wampproto import serializers
+from wampproto.messages import Error
+
+from xconn.exception import ApplicationError
 
 JSON_SUBPROTOCOL = "wamp.2.json"
 CBOR_SUBPROTOCOL = "wamp.2.cbor"
@@ -25,3 +28,13 @@ def get_serializer(ws_subprotocol: str) -> serializers.Serializer:
         return serializers.MsgPackSerializer()
     else:
         raise ValueError(f"invalid websocket subprotocol {ws_subprotocol}")
+
+
+def throw_exception_handler(error: Error):
+    exc = ApplicationError(error.uri)
+    if error.args:
+        exc.args = error.args
+    if error.kwargs:
+        exc.kwargs = error.kwargs
+
+    raise exc
