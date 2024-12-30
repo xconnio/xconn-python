@@ -5,7 +5,7 @@ from typing import Callable, Any
 
 from wampproto import messages, idgen, session, uris
 
-from xconn import types, exception
+from xconn import types, exception, uris as xconn_uris
 from xconn.helpers import throw_exception_handler
 
 
@@ -58,12 +58,19 @@ class Session:
             request = self.call_requests.pop(msg.request_id)
             request.set_result(types.Result(msg.args, msg.kwargs, msg.options))
         elif isinstance(msg, messages.Invocation):
-            endpoint = self.registrations[msg.registration_id]
-            result = endpoint(msg)
-            data = self.session.send_message(
-                messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-            )
-            self.base_session.send(data)
+            try:
+                endpoint = self.registrations[msg.registration_id]
+                result = endpoint(msg)
+                data = self.session.send_message(
+                    messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                )
+                self.base_session.send(data)
+            except Exception as e:
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
+                )
+                data = self.session.send_message(msg_to_send)
+                self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
