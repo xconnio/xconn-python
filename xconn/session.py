@@ -129,7 +129,8 @@ class Session:
         else:
             raise ValueError("received unknown message")
 
-    def call(self, procedure: str, args: list[Any] = None, kwargs: dict = None, options: dict = None) -> types.Result:
+    def call(self, procedure: str, *args, **kwargs) -> types.Result:
+        options = kwargs.pop("options", None)
         call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
         data = self.session.send_message(call)
 
