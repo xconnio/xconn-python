@@ -3,6 +3,7 @@ from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
 
+from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 
 from xconn import types, exception, uris as xconn_uris
@@ -37,7 +38,7 @@ class Session:
         thread.start()
 
     def wait(self):
-        while True:
+        while self.base_session.ws.state == State.OPEN:
             try:
                 data = self.base_session.receive()
             except Exception:
