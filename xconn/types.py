@@ -19,7 +19,7 @@ class Registration:
 @dataclass
 class RegisterRequest:
     future: Future[Registration]
-    endpoint: Callable[[Invocation], Result]
+    endpoint: Callable | Callable[[Invocation], Result]
 
 
 @dataclass
