@@ -100,8 +100,11 @@ class Session:
             request = self.publish_requests.pop(msg.request_id)
             request.set_result(None)
         elif isinstance(msg, messages.Event):
-            endpoint = self.subscriptions[msg.subscription_id]
-            endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            try:
+                endpoint = self.subscriptions[msg.subscription_id]
+                endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            except Exception as e:
+                print(e)
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:
