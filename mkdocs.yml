@@ -37,7 +37,7 @@ theme:
 repo_url: https://github.com/xconnio/xconn-python
 repo_name: xconnio/xconn-python
 site_author: omer
-site_url: https://xconn.io
+site_url: https://xconnio.github.io/xconn-python/
 site_dir: site/docs
 
 plugins:
