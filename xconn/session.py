@@ -3,10 +3,11 @@ from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
 
+from pydantic import ValidationError
 from wampproto import messages, idgen, session, uris
 
 from xconn import types, exception, uris as xconn_uris
-from xconn.helpers import throw_exception_handler
+from xconn.helpers import throw_exception_handler, validate_data
 
 
 class Session:
@@ -60,10 +61,26 @@ class Session:
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self.registrations[msg.registration_id]
-                result = endpoint(msg)
-                data = self.session.send_message(
-                    messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+
+                if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                    result = endpoint(*msg.args, **msg.kwargs)
+                elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                    result = endpoint(**msg.kwargs)
+                else:
+                    result = endpoint(*msg.args)
+
+                if isinstance(result, messages.Result):
+                    data = self.session.send_message(
+                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                    )
+                else:
+                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                self.base_session.send(data)
+            except ValidationError as e:
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
                 )
+                data = self.session.send_message(msg_to_send)
                 self.base_session.send(data)
             except Exception as e:
                 msg_to_send = messages.Error(
@@ -123,13 +140,18 @@ class Session:
         return f.result()
 
     def register(
-        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
+        self,
+        procedure: str,
+        invocation_handler: Callable | Callable[[types.Invocation], types.Result],
+        options: dict = None,
     ) -> types.Registration:
         register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
+        validated_handler = validate_data(invocation_handler)
+
         f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
+        self.register_requests[register.request_id] = types.RegisterRequest(f, validated_handler)
         self.base_session.send(data)
 
         return f.result()

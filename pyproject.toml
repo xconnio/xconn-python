@@ -18,6 +18,7 @@ dependencies = [
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
+  "pydantic",
 ]
 requires-python = ">=3.10"
 classifiers = [
