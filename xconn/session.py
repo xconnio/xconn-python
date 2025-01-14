@@ -211,6 +211,7 @@ class Session:
         goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_REALM))
         data = self.session.send_message(goodbye)
         self.base_session.send(data)
+        self.base_session.close()
 
         return self.goodbye_request.result(timeout=10)
 
