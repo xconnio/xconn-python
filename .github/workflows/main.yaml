@@ -22,6 +22,13 @@ jobs:
       - name: Setup environment & install dependencies
         run: make setup
 
+      - name: Setup AAT
+        run: |
+          git clone https://github.com/xconnio/xconn-aat-setup.git
+          cd xconn-aat-setup
+          make build-docker-xconn
+          docker compose up -d
+
       - name: Run tests
         run: make test
 
