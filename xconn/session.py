@@ -197,7 +197,7 @@ class Session:
         publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
         data = self.session.send_message(publish)
 
-        if options is not None and options.get("acknowledge", True):
+        if options is not None and options.get("acknowledge", False):
             f: Future = Future()
             self.publish_requests[publish.request_id] = f
             self.base_session.send(data)
