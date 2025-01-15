@@ -70,7 +70,7 @@ class Session:
                 else:
                     result = endpoint(*msg.args)
 
-                if isinstance(result, messages.Result):
+                if isinstance(result, types.Result):
                     data = self.session.send_message(
                         messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
                     )
