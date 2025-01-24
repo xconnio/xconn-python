@@ -66,6 +66,12 @@ class Event:
     details: dict | None
 
 
+@dataclass
+class CallResponse:
+    data: bytes
+    future: Future
+
+
 class IBasePeer:
     def read(self) -> str | bytes:
         raise NotImplementedError()

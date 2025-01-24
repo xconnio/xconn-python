@@ -11,6 +11,24 @@ from xconn import types, exception, uris as xconn_uris
 from xconn.helpers import throw_exception_handler, validate_data
 
 
+def call(
+    wamp_session: session.WAMPSession,
+    id_generator: idgen.SessionScopeIDGenerator,
+    call_requests: dict[int, Future[types.Result]],
+    procedure: str,
+    *args,
+    **kwargs,
+) -> types.CallResponse:
+    options = kwargs.pop("options", None)
+    call_msg = messages.Call(messages.CallFields(id_generator.next(), procedure, args, kwargs, options=options))
+    data = wamp_session.send_message(call_msg)
+
+    f = Future()
+    call_requests[call_msg.request_id] = f
+
+    return types.CallResponse(data, f)
+
+
 class Session:
     def __init__(self, base_session: types.BaseSession):
         # RPC data structures
@@ -134,15 +152,10 @@ class Session:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        options = kwargs.pop("options", None)
-        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
-        data = self.session.send_message(call)
+        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
+        self.base_session.send(call_response.data)
 
-        f = Future()
-        self.call_requests[call.request_id] = f
-        self.base_session.send(data)
-
-        return f.result()
+        return call_response.future.result()
 
     def register(
         self,
@@ -311,3 +324,9 @@ class AsyncSession:
         await self.base_session.send(data)
 
         return f
+
+    async def call(self, procedure: str, *args, **kwargs) -> Future[types.Result]:
+        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
+        await self.base_session.send(call_response.data)
+
+        return call_response.future
