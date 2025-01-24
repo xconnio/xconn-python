@@ -66,6 +66,12 @@ class Event:
     details: dict | None
 
 
+@dataclass
+class RegisterResponse:
+    data: bytes
+    future: Future[Registration]
+
+
 class IBasePeer:
     def read(self) -> str | bytes:
         raise NotImplementedError()
