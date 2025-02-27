@@ -335,3 +335,10 @@ class AsyncSession:
         await self.base_session.send(register_response.data)
 
         return register_response.future
+
+    async def call(self, procedure: str, *args, **kwargs) -> Future[types.Result]:
+        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
+
+        await self.base_session.send(call_response.data)
+
+        return call_response.future
