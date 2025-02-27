@@ -8,7 +8,24 @@ from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 
 from xconn import types, exception, uris as xconn_uris
-from xconn.helpers import throw_exception_handler, validate_data
+from xconn.helpers import throw_exception_handler
+
+
+def register(
+    wamp_session: session.WAMPSession,
+    id_generator: idgen.SessionScopeIDGenerator,
+    register_requests: dict[int, types.RegisterRequest],
+    procedure: str,
+    invocation_handler: Callable | Callable[[types.Invocation], types.Result],
+    options: dict | None = None,
+) -> types.RegisterResponse:
+    register_msg = messages.Register(messages.RegisterFields(id_generator.next(), procedure, options=options))
+    data = wamp_session.send_message(register_msg)
+
+    f: Future[types.Registration] = Future()
+    register_requests[register_msg.request_id] = types.RegisterRequest(f, invocation_handler)
+
+    return types.RegisterResponse(data, f)
 
 
 class Session:
@@ -150,16 +167,12 @@ class Session:
         invocation_handler: Callable | Callable[[types.Invocation], types.Result],
         options: dict = None,
     ) -> types.Registration:
-        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
-        data = self.session.send_message(register)
+        register_response = register(
+            self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
+        )
+        self.base_session.send(register_response.data)
 
-        validated_handler = validate_data(invocation_handler)
-
-        f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, validated_handler)
-        self.base_session.send(data)
-
-        return f.result()
+        return register_response.future.result()
 
     def unregister(self, reg: types.Registration):
         unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
@@ -303,11 +316,9 @@ class AsyncSession:
     async def register(
         self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
     ) -> Future[types.Registration]:
-        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
-        data = self.session.send_message(register)
+        register_response = register(
+            self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
+        )
+        await self.base_session.send(register_response.data)
 
-        f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
-        await self.base_session.send(data)
-
-        return f
+        return register_response.future
