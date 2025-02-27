@@ -72,6 +72,12 @@ class RegisterResponse:
     future: Future[Registration]
 
 
+@dataclass
+class CallResponse:
+    data: bytes
+    future: Future
+
+
 class IBasePeer:
     def read(self) -> str | bytes:
         raise NotImplementedError()
