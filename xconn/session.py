@@ -290,23 +290,35 @@ class AsyncSession:
             request = self.call_requests.pop(msg.request_id)
             request.set_result(types.Result(msg.args, msg.kwargs, msg.options))
         elif isinstance(msg, messages.Invocation):
-            endpoint = self.registrations[msg.registration_id]
             try:
-                result = endpoint(msg)
-                msg_to_send = messages.Yield(
-                    messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details)
-                )
-            except exception.ApplicationError as e:
+                endpoint = self.registrations[msg.registration_id]
+
+                if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                    result = endpoint(*msg.args, **msg.kwargs)
+                elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                    result = endpoint(**msg.kwargs)
+                else:
+                    result = endpoint(*msg.args)
+
+                if isinstance(result, types.Result):
+                    data = self.session.send_message(
+                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                    )
+                else:
+                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                await self.base_session.send(data)
+            except ValidationError as e:
                 msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, e.message, args=list(e.args), kwargs=e.kwargs)
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
                 )
+                data = self.session.send_message(msg_to_send)
+                await self.base_session.send(data)
             except Exception as e:
                 msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, "wamp.error.runtime_error", args=[str(e)])
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
                 )
-
-            data = self.session.send_message(msg_to_send)
-            await self.base_session.send(data)
+                data = self.session.send_message(msg_to_send)
+                await self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
