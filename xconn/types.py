@@ -9,6 +9,7 @@ from typing import Callable
 from aiohttp import web
 from websockets.sync.connection import Connection
 from wampproto import messages, joiner, serializers
+from websockets.asyncio.client import ClientConnection
 
 
 @dataclass
@@ -221,6 +222,51 @@ class IAsyncBaseSession:
 
     async def close(self):
         raise NotImplementedError()
+
+
+class AsyncBaseSession(IAsyncBaseSession):
+    def __init__(
+        self, ws: ClientConnection, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+    ):
+        super().__init__()
+        self.ws = ws
+        self.session_details = session_details
+        self._serializer = serializer
+
+    @property
+    def id(self) -> int:
+        return self.session_details.session_id
+
+    @property
+    def realm(self) -> str:
+        return self.session_details.realm
+
+    @property
+    def authid(self) -> str:
+        return self.session_details.authid
+
+    @property
+    def authrole(self) -> str:
+        return self.session_details.authrole
+
+    @property
+    def serializer(self) -> serializers.Serializer:
+        return self._serializer
+
+    async def send(self, data: bytes):
+        return await self.ws.send(data)
+
+    async def receive(self) -> bytes:
+        return await self.ws.recv()
+
+    async def send_message(self, msg: messages.Message):
+        await self.ws.send(self.serializer.serialize(msg))
+
+    async def receive_message(self) -> messages.Message:
+        return self.serializer.deserialize(await self.receive())
+
+    async def close(self):
+        await self.ws.close()
 
 
 class AIOHttpBaseSession(IAsyncBaseSession):
