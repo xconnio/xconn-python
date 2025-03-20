@@ -1,5 +1,5 @@
 from xconn.app import XConnApp
-from xconn.client import Client
+from xconn.client import Client, AsyncClient
 from xconn.router import Router
 from xconn.server import Server
 
@@ -19,6 +19,7 @@ from wampproto.serializers import (
 __all__ = [
     "XConnApp",
     "Client",
+    "AsyncClient",
     "Router",
     "Server",
     # export authenticators
