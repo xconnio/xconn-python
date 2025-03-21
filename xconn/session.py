@@ -1,7 +1,8 @@
 import asyncio
+import inspect
 from concurrent.futures import Future
 from threading import Thread
-from typing import Callable, Any
+from typing import Callable, Any, Union, Awaitable
 
 from pydantic import ValidationError
 from websockets.protocol import State
@@ -247,7 +248,10 @@ class AsyncSession:
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
-        self.registrations: dict[int, Callable[[types.Invocation], types.Result]] = {}
+        self.registrations: dict[
+            int,
+            Union[Callable[[types.Invocation], types.Result], Callable[[types.Invocation], Awaitable[types.Result]]],
+        ] = {}
         self.unregister_requests: dict[int, types.UnregisterRequest] = {}
 
         # PubSub data structures
@@ -293,12 +297,20 @@ class AsyncSession:
             try:
                 endpoint = self.registrations[msg.registration_id]
 
-                if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
-                    result = endpoint(*msg.args, **msg.kwargs)
-                elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
-                    result = endpoint(**msg.kwargs)
+                if inspect.iscoroutinefunction(endpoint):
+                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                        result = await endpoint(*msg.args, **msg.kwargs)
+                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                        result = await endpoint(**msg.kwargs)
+                    else:
+                        result = await endpoint(*msg.args)
                 else:
-                    result = endpoint(*msg.args)
+                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                        result = endpoint(*msg.args, **msg.kwargs)
+                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                        result = endpoint(**msg.kwargs)
+                    else:
+                        result = endpoint(*msg.args)
 
                 if isinstance(result, types.Result):
                     data = self.session.send_message(
