@@ -302,15 +302,19 @@ class AsyncSession:
                         result = await endpoint(*msg.args, **msg.kwargs)
                     elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
                         result = await endpoint(**msg.kwargs)
-                    else:
+                    elif msg.args is not None:
                         result = await endpoint(*msg.args)
+                    else:
+                        result = await endpoint()
                 else:
                     if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
                         result = endpoint(*msg.args, **msg.kwargs)
                     elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
                         result = endpoint(**msg.kwargs)
-                    else:
+                    elif msg.args is not None:
                         result = endpoint(*msg.args)
+                    else:
+                        result = endpoint()
 
                 if isinstance(result, types.Result):
                     data = self.session.send_message(
