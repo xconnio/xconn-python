@@ -7,7 +7,7 @@ from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 
 from xconn import types, exception, uris as xconn_uris
-from xconn.helpers import throw_exception_handler
+from xconn.helpers import exception_from_error
 
 
 def register(
@@ -144,22 +144,22 @@ class Session:
             match msg.message_type:
                 case messages.Call.TYPE:
                     call_request = self.call_requests.pop(msg.request_id)
-                    call_request.set_exception(throw_exception_handler(msg))
+                    call_request.set_exception(exception_from_error(msg))
                 case messages.Register.TYPE:
                     register_request = self.register_requests.pop(msg.request_id)
-                    register_request.future.set_exception(throw_exception_handler(msg))
+                    register_request.future.set_exception(exception_from_error(msg))
                 case messages.Unregister.TYPE:
                     unregister_request = self.unregister_requests.pop(msg.request_id)
-                    unregister_request.future.set_exception(throw_exception_handler(msg))
+                    unregister_request.future.set_exception(exception_from_error(msg))
                 case messages.Subscribe.TYPE:
                     subscribe_request = self.subscribe_requests.pop(msg.request_id)
-                    subscribe_request.future.set_exception(throw_exception_handler(msg))
+                    subscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Unsubscribe.TYPE:
                     unsubscribe_request = self.unsubscribe_requests.pop(msg.request_id)
-                    unsubscribe_request.future.set_exception(throw_exception_handler(msg))
+                    unsubscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Publish.TYPE:
                     publish_request = self.publish_requests.pop(msg.request_id)
-                    publish_request.set_exception(throw_exception_handler(msg))
+                    publish_request.set_exception(exception_from_error(msg))
                 case _:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
