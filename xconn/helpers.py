@@ -43,10 +43,6 @@ def exception_from_error(error: Error):
     return exc
 
 
-def throw_exception_handler(error: Error):
-    raise exception_from_error(error)
-
-
 def validate_data(func):
     sig = signature(func)
     for param_name, param in sig.parameters.items():
