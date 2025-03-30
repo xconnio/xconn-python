@@ -3,7 +3,7 @@ import inspect
 from typing import Callable, Union, Awaitable
 
 from pydantic import ValidationError
-from wampproto import messages, idgen, session, uris
+from wampproto import messages, idgen, session
 
 from xconn import types, uris as xconn_uris, exception
 from xconn.helpers import exception_from_error
