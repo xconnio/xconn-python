@@ -1,13 +1,12 @@
-from concurrent.futures import Future
-from threading import Thread
-from typing import Callable, Any
+from asyncio import Future, get_event_loop
+import inspect
+from typing import Callable, Union, Awaitable
 
 from pydantic import ValidationError
-from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 
-from xconn import types, exception, uris as xconn_uris
-from xconn.helpers import throw_exception_handler
+from xconn import types, uris as xconn_uris, exception
+from xconn.helpers import exception_from_error
 
 
 def register(
@@ -45,12 +44,15 @@ def call(
     return types.CallResponse(data, f)
 
 
-class Session:
-    def __init__(self, base_session: types.BaseSession):
+class AsyncSession:
+    def __init__(self, base_session: types.IAsyncBaseSession):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
-        self.registrations: dict[int, Callable[[types.Invocation], types.Result]] = {}
+        self.registrations: dict[
+            int,
+            Union[Callable[[types.Invocation], types.Result], Callable[[types.Invocation], Awaitable[types.Result]]],
+        ] = {}
         self.unregister_requests: dict[int, types.UnregisterRequest] = {}
 
         # PubSub data structures
@@ -58,8 +60,6 @@ class Session:
         self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
         self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
-
-        self.goodbye_request = Future()
 
         # ID generator
         self.idgen = idgen.SessionScopeIDGenerator()
@@ -69,19 +69,20 @@ class Session:
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
 
-        thread = Thread(target=self.wait)
-        thread.start()
+        loop = get_event_loop()
+        loop.create_task(self.wait())
 
-    def wait(self):
-        while self.base_session.ws.state == State.OPEN:
+    async def wait(self):
+        while True:
             try:
-                data = self.base_session.receive()
-            except Exception:
+                data = await self.base_session.receive()
+            except Exception as e:
+                print(e)
                 break
 
-            self.process_incoming_message(self.session.receive(data))
+            await self.process_incoming_message(self.session.receive(data))
 
-    def process_incoming_message(self, msg: messages.Message):
+    async def process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
             request = self.register_requests.pop(msg.request_id)
             self.registrations[msg.registration_id] = request.endpoint
@@ -97,12 +98,24 @@ class Session:
             try:
                 endpoint = self.registrations[msg.registration_id]
 
-                if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
-                    result = endpoint(*msg.args, **msg.kwargs)
-                elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
-                    result = endpoint(**msg.kwargs)
+                if inspect.iscoroutinefunction(endpoint):
+                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                        result = await endpoint(*msg.args, **msg.kwargs)
+                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                        result = await endpoint(**msg.kwargs)
+                    elif msg.args is not None:
+                        result = await endpoint(*msg.args)
+                    else:
+                        result = await endpoint()
                 else:
-                    result = endpoint(*msg.args)
+                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
+                        result = endpoint(*msg.args, **msg.kwargs)
+                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
+                        result = endpoint(**msg.kwargs)
+                    elif msg.args is not None:
+                        result = endpoint(*msg.args)
+                    else:
+                        result = endpoint()
 
                 if isinstance(result, types.Result):
                     data = self.session.send_message(
@@ -110,19 +123,19 @@ class Session:
                     )
                 else:
                     data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
-                self.base_session.send(data)
+                await self.base_session.send(data)
             except ValidationError as e:
                 msg_to_send = messages.Error(
                     messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
                 )
                 data = self.session.send_message(msg_to_send)
-                self.base_session.send(data)
+                await self.base_session.send(data)
             except Exception as e:
                 msg_to_send = messages.Error(
                     messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
                 )
                 data = self.session.send_message(msg_to_send)
-                self.base_session.send(data)
+                await self.base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
@@ -135,107 +148,46 @@ class Session:
             request = self.publish_requests.pop(msg.request_id)
             request.set_result(None)
         elif isinstance(msg, messages.Event):
-            try:
-                endpoint = self.subscriptions[msg.subscription_id]
-                endpoint(types.Event(msg.args, msg.kwargs, msg.details))
-            except Exception as e:
-                print(e)
+            endpoint = self.subscriptions[msg.subscription_id]
+            endpoint(types.Event(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:
                     call_request = self.call_requests.pop(msg.request_id)
-                    call_request.set_exception(throw_exception_handler(msg))
+                    call_request.set_exception(exception_from_error(msg))
                 case messages.Register.TYPE:
                     register_request = self.register_requests.pop(msg.request_id)
-                    register_request.future.set_exception(throw_exception_handler(msg))
+                    register_request.future.set_exception(exception_from_error(msg))
                 case messages.Unregister.TYPE:
                     unregister_request = self.unregister_requests.pop(msg.request_id)
-                    unregister_request.future.set_exception(throw_exception_handler(msg))
+                    unregister_request.future.set_exception(exception_from_error(msg))
                 case messages.Subscribe.TYPE:
                     subscribe_request = self.subscribe_requests.pop(msg.request_id)
-                    subscribe_request.future.set_exception(throw_exception_handler(msg))
+                    subscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Unsubscribe.TYPE:
                     unsubscribe_request = self.unsubscribe_requests.pop(msg.request_id)
-                    unsubscribe_request.future.set_exception(throw_exception_handler(msg))
+                    unsubscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Publish.TYPE:
                     publish_request = self.publish_requests.pop(msg.request_id)
-                    publish_request.set_exception(throw_exception_handler(msg))
+                    publish_request.set_exception(exception_from_error(msg))
                 case _:
                     raise exception.ProtocolError(msg.__str__())
-        elif isinstance(msg, messages.Goodbye):
-            self.goodbye_request.set_result(None)
         else:
             raise ValueError("received unknown message")
 
-    def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
-        self.base_session.send(call_response.data)
-
-        return call_response.future.result()
-
-    def register(
-        self,
-        procedure: str,
-        invocation_handler: Callable | Callable[[types.Invocation], types.Result],
-        options: dict = None,
+    async def register(
+        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
     ) -> types.Registration:
         register_response = register(
             self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
         )
-        self.base_session.send(register_response.data)
+        await self.base_session.send(register_response.data)
 
-        return register_response.future.result()
+        return await register_response.future
 
-    def unregister(self, reg: types.Registration):
-        unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
-        data = self.session.send_message(unregister)
+    async def call(self, procedure: str, *args, **kwargs) -> types.Result:
+        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
 
-        f: Future = Future()
-        self.unregister_requests[unregister.request_id] = types.UnregisterRequest(f, reg.registration_id)
-        self.base_session.send(data)
+        await self.base_session.send(call_response.data)
 
-        f.result()
-
-    def subscribe(
-        self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None
-    ) -> types.Subscription:
-        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
-        data = self.session.send_message(subscribe)
-
-        f: Future[types.Subscription] = Future()
-        self.subscribe_requests[subscribe.request_id] = types.SubscribeRequest(f, event_handler)
-        self.base_session.send(data)
-
-        return f.result()
-
-    def unsubscribe(self, sub: types.Subscription):
-        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.idgen.next(), sub.subscription_id))
-        data = self.session.send_message(unsubscribe)
-
-        f: Future = Future()
-        self.unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, sub.subscription_id)
-        self.base_session.send(data)
-
-        f.result()
-
-    def publish(self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None):
-        publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
-        data = self.session.send_message(publish)
-
-        if options is not None and options.get("acknowledge", False):
-            f: Future = Future()
-            self.publish_requests[publish.request_id] = f
-            self.base_session.send(data)
-            return f.result()
-
-        self.base_session.send(data)
-
-    def leave(self):
-        self.goodbye_request = Future()
-
-        goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_REALM))
-        data = self.session.send_message(goodbye)
-        self.base_session.send(data)
-        self.base_session.close()
-
-        return self.goodbye_request.result(timeout=10)
+        return await call_response.future

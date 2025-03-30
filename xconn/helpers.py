@@ -33,14 +33,18 @@ def get_serializer(ws_subprotocol: str) -> serializers.Serializer:
         raise ValueError(f"invalid websocket subprotocol {ws_subprotocol}")
 
 
-def throw_exception_handler(error: Error):
+def exception_from_error(error: Error):
     exc = ApplicationError(error.uri)
     if error.args:
         exc.args = error.args
     if error.kwargs:
         exc.kwargs = error.kwargs
 
-    raise exc
+    return exc
+
+
+def throw_exception_handler(error: Error):
+    raise exception_from_error(error)
 
 
 def validate_data(func):
