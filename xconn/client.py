@@ -1,6 +1,7 @@
 from wampproto import auth, serializers
 
-from xconn.session import Session, AsyncSession
+from xconn.session import Session
+from xconn.async_session import AsyncSession
 from xconn.joiner import WebsocketsJoiner, AsyncWebsocketsJoiner
 
 
