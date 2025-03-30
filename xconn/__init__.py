@@ -2,6 +2,7 @@ from xconn.app import XConnApp
 from xconn.client import Client, AsyncClient
 from xconn.router import Router
 from xconn.server import Server
+from xconn.utils import run
 
 from wampproto.auth import (
     AnonymousAuthenticator,
@@ -31,4 +32,6 @@ __all__ = [
     "JSONSerializer",
     "MsgPackSerializer",
     "CBORSerializer",
+    # runner for async client
+    "run",
 ]
