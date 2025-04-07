@@ -185,6 +185,16 @@ class AsyncSession:
 
         return await register_response.future
 
+    async def unregister(self, reg: types.Registration):
+        unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
+        data = self.session.send_message(unregister)
+
+        f: Future = Future()
+        self.unregister_requests[unregister.request_id] = types.UnregisterRequest(f, reg.registration_id)
+        await self.base_session.send(data)
+
+        return await f
+
     async def call(self, procedure: str, *args, **kwargs) -> types.Result:
         call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
 
