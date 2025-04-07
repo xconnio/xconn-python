@@ -1,6 +1,6 @@
-from asyncio import Future, get_event_loop
 import inspect
-from typing import Callable, Union, Awaitable
+from asyncio import Future, get_event_loop
+from typing import Callable, Union, Awaitable, Any
 
 from pydantic import ValidationError
 from wampproto import messages, idgen, session
@@ -203,7 +203,7 @@ class AsyncSession:
         return await call_response.future
 
     async def subscribe(
-        self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None
+        self, topic: str, event_handler: Callable[[types.Event], None], options: dict | None = None
     ) -> types.Subscription:
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
@@ -223,3 +223,17 @@ class AsyncSession:
         await self.base_session.send(data)
 
         return await f
+
+    async def publish(
+        self, topic: str, args: list[Any] | None = None, kwargs: dict | None = None, options: dict | None = None
+    ) -> None:
+        publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
+        data = self.session.send_message(publish)
+
+        if options is not None and options.get("acknowledge", False):
+            f: Future = Future()
+            self.publish_requests[publish.request_id] = f
+            await self.base_session.send(data)
+            return await f
+
+        await self.base_session.send(data)
