@@ -213,3 +213,13 @@ class AsyncSession:
         await self.base_session.send(data)
 
         return await f
+
+    async def unsubscribe(self, sub: types.Subscription) -> None:
+        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.idgen.next(), sub.subscription_id))
+        data = self.session.send_message(unsubscribe)
+
+        f: Future = Future()
+        self.unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, sub.subscription_id)
+        await self.base_session.send(data)
+
+        return await f
