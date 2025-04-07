@@ -201,3 +201,15 @@ class AsyncSession:
         await self.base_session.send(call_response.data)
 
         return await call_response.future
+
+    async def subscribe(
+        self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None
+    ) -> types.Subscription:
+        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
+        data = self.session.send_message(subscribe)
+
+        f: Future[types.Subscription] = Future()
+        self.subscribe_requests[subscribe.request_id] = types.SubscribeRequest(f, event_handler)
+        await self.base_session.send(data)
+
+        return await f
