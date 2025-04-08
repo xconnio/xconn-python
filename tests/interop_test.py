@@ -1,7 +1,7 @@
 import pytest
 from wampproto import auth, serializers
 
-from xconn.client import Client
+from xconn.client import Client, AsyncClient
 from xconn.types import Result, Event
 
 XCONN_URL = "ws://localhost:8080/ws"
@@ -74,3 +74,42 @@ def test_rpc(url: str, serializer: serializers.Serializer, authenticator: auth.I
     session.unregister(reg)
 
     session.leave()
+
+
+@pytest.mark.parametrize("url", ROUTER_URL)
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+@pytest.mark.parametrize("authenticator", AUTHENTICATORS)
+async def test_pubsub_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
+    args = ["hello", "wamp"]
+
+    def event_handler(event: Event):
+        assert event.args == args
+
+    client = AsyncClient(authenticator=authenticator, serializer=serializer)
+    session = await client.connect(url, REALM)
+    sub = await session.subscribe("io.xconn.test", event_handler, options={"acknowledge": True})
+    await session.publish("io.xconn.test", args)
+
+    await session.unsubscribe(sub)
+
+    await session.leave()
+
+
+@pytest.mark.parametrize("url", ROUTER_URL)
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+@pytest.mark.parametrize("authenticator", AUTHENTICATORS)
+async def test_rpc_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
+    args = ["hello", "wamp"]
+
+    def inv_handler(a: str, b: str):
+        return Result([a, b])
+
+    client = AsyncClient(authenticator=authenticator, serializer=serializer)
+    session = await client.connect(url, REALM)
+    reg = await session.register("io.xconn.test", inv_handler)
+    result = await session.call("io.xconn.test", *args)
+    assert result.args == args
+
+    await session.unregister(reg)
+
+    await session.leave()
