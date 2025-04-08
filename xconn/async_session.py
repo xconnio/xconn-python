@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
@@ -60,6 +61,8 @@ class AsyncSession:
         self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
         self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
+
+        self.goodbye_request = Future()
 
         # ID generator
         self.idgen = idgen.SessionScopeIDGenerator()
@@ -172,6 +175,8 @@ class AsyncSession:
                     publish_request.set_exception(exception_from_error(msg))
                 case _:
                     raise exception.ProtocolError(msg.__str__())
+        elif isinstance(msg, messages.Goodbye):
+            self.goodbye_request.set_result(None)
         else:
             raise ValueError("received unknown message")
 
@@ -237,3 +242,17 @@ class AsyncSession:
             return await f
 
         await self.base_session.send(data)
+
+    async def leave(self) -> None:
+        self.goodbye_request = Future()
+
+        goodbye = messages.Goodbye(messages.GoodbyeFields({}, xconn_uris.CLOSE_REALM))
+        data = self.session.send_message(goodbye)
+        await self.base_session.send(data)
+
+        try:
+            await asyncio.wait_for(self.goodbye_request, timeout=10)
+        except asyncio.TimeoutError:
+            pass
+
+        await self.base_session.close()
