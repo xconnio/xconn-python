@@ -1,4 +1,5 @@
 from wampproto import auth, serializers
+from wampproto.auth import AnonymousAuthenticator
 
 from xconn.session import Session
 from xconn.async_session import AsyncSession
@@ -8,7 +9,7 @@ from xconn.joiner import WebsocketsJoiner, AsyncWebsocketsJoiner
 class Client:
     def __init__(
         self,
-        authenticator: auth.IClientAuthenticator,
+        authenticator: auth.IClientAuthenticator = AnonymousAuthenticator(""),
         serializer: serializers.Serializer = serializers.JSONSerializer(),
     ):
         self._authenticator = authenticator
@@ -24,7 +25,7 @@ class Client:
 class AsyncClient:
     def __init__(
         self,
-        authenticator: auth.IClientAuthenticator,
+        authenticator: auth.IClientAuthenticator = AnonymousAuthenticator(""),
         serializer: serializers.Serializer = serializers.JSONSerializer(),
     ):
         self._authenticator = authenticator
