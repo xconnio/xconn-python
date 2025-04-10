@@ -4,6 +4,7 @@ from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
 
 from pydantic import ValidationError
+from websockets.protocol import State
 from wampproto import messages, idgen, session
 
 from xconn import types, uris as xconn_uris, exception
@@ -73,10 +74,10 @@ class AsyncSession:
         self.session = session.WAMPSession(base_session.serializer)
 
         loop = get_event_loop()
-        loop.create_task(self.wait())
+        self.wait_task = loop.create_task(self.wait())
 
     async def wait(self):
-        while True:
+        while self.base_session.ws.state == State.OPEN:
             try:
                 data = await self.base_session.receive()
             except Exception as e:
@@ -255,4 +256,11 @@ class AsyncSession:
         except asyncio.TimeoutError:
             pass
 
-        await self.base_session.close()
+        self.wait_task.cancel()
+        try:
+            await self.wait_task
+        except asyncio.CancelledError:
+            pass
+
+        if self.base_session.ws.state != State.CLOSED:
+            await self.base_session.close()
