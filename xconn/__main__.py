@@ -9,7 +9,7 @@ from wampproto.serializers import CBORSerializer
 from xconn.app import XConnApp
 from xconn.router import Router
 from xconn.server import Server
-from xconn.session import AsyncSession
+from xconn.async_session import AsyncSession
 from xconn.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
 
 
