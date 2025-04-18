@@ -79,6 +79,21 @@ class CallResponse:
     future: Future
 
 
+@dataclass
+class WebsocketConfig:
+    # max wait time for connection to be established
+    open_timeout: float | None = 10
+
+    # send ping automatically after every x seconds
+    ping_interval: float | None = 20
+
+    # wait for x seconds for a pong from server before closing the connection
+    ping_timeout: float | None = 20
+
+    # max wait time for closing the connection
+    close_timeout: float | None = 10
+
+
 class IBasePeer:
     def read(self) -> str | bytes:
         raise NotImplementedError()

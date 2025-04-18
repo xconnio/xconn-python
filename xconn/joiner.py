@@ -11,12 +11,21 @@ class WebsocketsJoiner:
         self,
         authenticator: auth.IClientAuthenticator = None,
         serializer: serializers.Serializer = serializers.JSONSerializer(),
+        ws_config: types.WebsocketConfig = types.WebsocketConfig(),
     ):
         self._authenticator = authenticator
         self._serializer = serializer
+        self._ws_config = ws_config
 
     def join(self, uri: str, realm: str) -> types.BaseSession:
-        ws = connect(uri, subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)])
+        ws = connect(
+            uri,
+            subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
+            open_timeout=self._ws_config.open_timeout,
+            ping_interval=self._ws_config.ping_interval,
+            ping_timeout=self._ws_config.ping_timeout,
+            close_timeout=self._ws_config.close_timeout,
+        )
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         ws.send(j.send_hello())
@@ -35,12 +44,21 @@ class AsyncWebsocketsJoiner:
         self,
         authenticator: auth.IClientAuthenticator = None,
         serializer: serializers.Serializer = serializers.JSONSerializer(),
+        ws_config: types.WebsocketConfig = types.WebsocketConfig(),
     ):
+        self._ws_config = ws_config
         self._authenticator = authenticator
         self._serializer = serializer
 
     async def join(self, uri: str, realm: str) -> types.AsyncBaseSession:
-        ws = await async_connect(uri, subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)])
+        ws = await async_connect(
+            uri,
+            subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
+            open_timeout=self._ws_config.open_timeout,
+            ping_interval=self._ws_config.ping_interval,
+            ping_timeout=self._ws_config.ping_timeout,
+            close_timeout=self._ws_config.close_timeout,
+        )
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         await ws.send(j.send_hello())
