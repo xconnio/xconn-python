@@ -434,3 +434,33 @@ class ServerSideLocalBaseSession(IAsyncBaseSession):
 
     async def close(self):
         pass
+
+
+class _IncomingDetails(dict):
+    def __init__(self, details: dict | None = None):
+        super().__init__()
+        if details:
+            for k, v in details.items():
+                self[k] = v
+
+    @property
+    def session_id(self) -> int | None:
+        return self.get("session_id")
+
+    @property
+    def authid(self) -> str | None:
+        return self.get("authid")
+
+    @property
+    def authrole(self) -> str | None:
+        return self.get("authrole")
+
+
+class CallDetails(_IncomingDetails):
+    def __init__(self, details: dict | None = None):
+        super().__init__(details)
+
+
+class PublicationDetails(_IncomingDetails):
+    def __init__(self, details: dict | None = None):
+        super().__init__(details)

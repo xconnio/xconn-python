@@ -40,6 +40,8 @@ publish = ["twine", "build"]
 
 [project.scripts]
 "xconn" = "xconn.__main__:main"
+"xcc" = "xconn.__main__:main"
+"xcr" = "xconn.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/xconnio/xconn-python"
