@@ -102,14 +102,24 @@ class AsyncSession:
                 endpoint = self.registrations[msg.registration_id]
                 result = await endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
 
-                data = self.session.send_message(
-                    messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-                )
+                if result is None:
+                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                elif isinstance(result, types.Result):
+                    data = self.session.send_message(
+                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                    )
+                else:
+                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
+                        type(result)
+                    )
+                    msg_to_send = messages.Error(
+                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                    )
+                    data = self.session.send_message(msg_to_send)
+
                 await self.base_session.send(data)
             except ApplicationError as e:
-                msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()])
-                )
+                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()]))
                 data = self.session.send_message(msg_to_send)
                 await self.base_session.send(data)
             except Exception as e:

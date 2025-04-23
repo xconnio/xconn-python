@@ -7,6 +7,7 @@ from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 
 from xconn import types, exception, uris as xconn_uris
+from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
@@ -96,27 +97,26 @@ class Session:
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self.registrations[msg.registration_id]
+                result = endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
 
-                if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
-                    result = endpoint(*msg.args, **msg.kwargs)
-                elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
-                    result = endpoint(**msg.kwargs)
-                elif msg.args is not None:
-                    result = endpoint(*msg.args)
-                else:
-                    result = endpoint()
-
-                if isinstance(result, types.Result):
+                if result is None:
+                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                elif isinstance(result, types.Result):
                     data = self.session.send_message(
                         messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
                     )
                 else:
-                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
+                        type(result)
+                    )
+                    msg_to_send = messages.Error(
+                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                    )
+                    data = self.session.send_message(msg_to_send)
+
                 self.base_session.send(data)
-            except ValidationError as e:
-                msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
-                )
+            except ApplicationError as e:
+                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()]))
                 data = self.session.send_message(msg_to_send)
                 self.base_session.send(data)
             except Exception as e:
