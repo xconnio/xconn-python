@@ -2,7 +2,7 @@ import pytest
 from wampproto import auth, serializers
 
 from xconn.client import Client, AsyncClient
-from xconn.types import Result, Event
+from xconn.types import Result, Event, Invocation
 
 XCONN_URL = "ws://localhost:8080/ws"
 CROSSBAR_URL = "ws://localhost:8081/ws"
@@ -61,8 +61,8 @@ def test_pubsub(url: str, serializer: serializers.Serializer, authenticator: aut
 def test_rpc(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     args = ["hello", "wamp"]
 
-    def inv_handler(a: str, b: str):
-        return Result([a, b])
+    def inv_handler(inv: Invocation):
+        return Result(args=inv.args)
 
     client = Client(authenticator=authenticator, serializer=serializer)
     session = client.connect(url, REALM)
@@ -100,8 +100,8 @@ async def test_pubsub_async(url: str, serializer: serializers.Serializer, authen
 async def test_rpc_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     args = ["hello", "wamp"]
 
-    def inv_handler(a: str, b: str):
-        return Result([a, b])
+    def inv_handler(inv: Invocation):
+        return Result(args=inv.args)
 
     client = AsyncClient(authenticator=authenticator, serializer=serializer)
     session = await client.connect(url, REALM)
