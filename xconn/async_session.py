@@ -59,7 +59,7 @@ class AsyncSession:
         # PubSub data structures
         self.publish_requests: dict[int, Future[None]] = {}
         self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
-        self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
+        self.subscriptions: dict[int, Callable[[types.Event], Awaitable[None]]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
 
         self.goodbye_request = Future()
@@ -141,7 +141,7 @@ class AsyncSession:
             request.set_result(None)
         elif isinstance(msg, messages.Event):
             endpoint = self.subscriptions[msg.subscription_id]
-            endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:

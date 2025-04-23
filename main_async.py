@@ -7,23 +7,11 @@ from xconn.types import Result, Event, Invocation
 comp = Component()
 
 
-class Address(BaseModel):
-    street: str
-    city: str
-    country: str | None = None
-
-
-class ComplexModel(BaseModel):
-    name: str
-    age: int
-    addresses: list[Address]
-
-
-class Data(BaseModel):
+class InData(BaseModel):
     name: str
 
 
-class ReturnData(BaseModel):
+class OutData(BaseModel):
     name: str
     city: str
 
@@ -36,24 +24,24 @@ class MyData:
         self.name = "my name"
 
 
-@comp.register("io.xconn.component.echo", response_model=ReturnData)
-async def included_echo(data: Data) -> tuple[str, str]:
+@comp.register("io.xconn.component.echo", response_model=OutData)
+async def included_echo(data: InData) -> tuple[str, str]:
     return "hello", "ok"
 
 
 @comp.subscribe("io.xconn.component.yo")
-def included_event(event: Event) -> None:
+async def included_event(event: Event) -> None:
     print(app.session)
     print(event.args)
 
 
 class Test(Component):
-    @register("hello", response_model=ReturnData)
+    @register("hello", response_model=OutData)
     async def hello(self, name: str):
         return ("hello", "ok", 1, None), {"name": 1}
 
     @subscribe("topic")
-    def topic(self, event):
+    async def topic(self, event: str):
         print("TOPIC", event)
 
 
@@ -70,6 +58,6 @@ async def echo(inv: Invocation) -> Result:
 
 
 @app.subscribe("io.xconn.yo")
-def login(event: Event) -> None:
+async def login(event: Event) -> None:
     print(app.session)
     print(event.args)

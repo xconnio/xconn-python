@@ -12,6 +12,7 @@ import yaml
 
 from xconn.client import Client, AsyncClient
 from xconn.async_session import AsyncSession
+from xconn.session import Session
 from xconn import App, run
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
@@ -22,21 +23,21 @@ Primitive = Union[str, int, float, bool, None, bytes, dict, tuple]
 
 @dataclass
 class ClientConfig:
-    entrypoint: str
     url: str
     realm: str
     authid: str
-    auth_method: str
+    authmethod: str
+    directory: str
 
 
 async def register_async(session: AsyncSession, uri: str, func: callable):
     if not inspect.iscoroutinefunction(func):
-        raise RuntimeError(f"procedure '{uri}' must be a coroutine function")
+        raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must be a coroutine")
 
-    pydantic_model, response_model, positional_args, response_positional_args = _validate_function(func, uri)
+    model, response_model, positional_args, response_positional_args = _validate_procedure_function(func, uri)
 
     async def _handle_invocation(invocation: Invocation) -> Result:
-        if pydantic_model is not None:
+        if model is not None:
             args = invocation.args if invocation.args is not None else []
             kwargs = invocation.kwargs if invocation.kwargs is not None else {}
 
@@ -45,7 +46,7 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
             args_with_keys = dict(zip(positional_args, args))
 
-            result = await func(pydantic_model(**args_with_keys, **kwargs))
+            result = await func(model(**args_with_keys, **kwargs))
             return _handle_result(result, response_model, response_positional_args)
 
         result = await func(invocation)
@@ -54,7 +55,32 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     await session.register(uri, _handle_invocation)
 
 
-def _validate_function(func: callable, uri: str):
+def register_sync(session: Session, uri: str, func: callable):
+    if inspect.iscoroutinefunction(func):
+        raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must not be a coroutine")
+
+    model, response_model, positional_args, response_positional_args = _validate_procedure_function(func, uri)
+
+    def _handle_invocation(invocation: Invocation) -> Result:
+        if model is not None:
+            args = invocation.args if invocation.args is not None else []
+            kwargs = invocation.kwargs if invocation.kwargs is not None else {}
+
+            if len(args) != len(positional_args):
+                raise ApplicationError("foo.bar")
+
+            args_with_keys = dict(zip(positional_args, args))
+
+            result = func(model(**args_with_keys, **kwargs))
+            return _handle_result(result, response_model, response_positional_args)
+
+        result = func(invocation)
+        return _handle_result(result, response_model, response_positional_args)
+
+    session.register(uri, _handle_invocation)
+
+
+def _validate_procedure_function(func: callable, uri: str):
     sig = inspect.signature(func)
     for name, param in sig.parameters.items():
         if param.annotation is inspect._empty:
@@ -165,11 +191,83 @@ def _handle_result(
     return Result(args=[json.loads(response_model.from_orm(result).json())])
 
 
-def subscribe(session, event: Event):
-    pass
+async def subscribe_async(session: AsyncSession, topic: str, func: callable):
+    if not inspect.iscoroutinefunction(func):
+        raise RuntimeError(f"function {func.__name__} for topic '{topic}' must be a coroutine")
+
+    model, positional_args = _validate_topic_function(func, topic)
+
+    async def _handle_event(event: Event):
+        if model is not None:
+            args = event.args if event.args is not None else []
+            kwargs = event.kwargs if event.kwargs is not None else {}
+
+            if len(args) != len(positional_args):
+                raise ApplicationError("foo.bar")
+
+            args_with_keys = dict(zip(positional_args, args))
+
+            await func(model(**args_with_keys, **kwargs))
+
+        await func(event)
+
+    await session.subscribe(topic, _handle_event)
 
 
-def handle_start(app: str, url: str, realm: str, directory: str):
+def subscribe_sync(session: Session, topic: str, func: callable):
+    if inspect.iscoroutinefunction(func):
+        raise RuntimeError(f"function {func.__name__} for topic '{topic}' must not be a coroutine")
+
+    model, positional_args = _validate_topic_function(func, topic)
+
+    def _handle_event(event: Event):
+        if model is not None:
+            args = event.args if event.args is not None else []
+            kwargs = event.kwargs if event.kwargs is not None else {}
+
+            if len(args) != len(positional_args):
+                raise ApplicationError("foo.bar")
+
+            args_with_keys = dict(zip(positional_args, args))
+            func(model(**args_with_keys, **kwargs))
+
+        func(event)
+
+    session.subscribe(topic, _handle_event)
+
+
+def _validate_topic_function(func: callable, uri: str):
+    sig = inspect.signature(func)
+    for name, param in sig.parameters.items():
+        if param.annotation is inspect._empty:
+            raise RuntimeError(f"Missing type hint for parameter: '{name}' in function '{func.__name__}'")
+
+    hints = get_type_hints(func)
+    hints.pop("return") if "return" in hints else None
+
+    if Event in hints.values():
+        if len(hints) != 1:
+            raise RuntimeError(f"Cannot use other types than 'Event' as arguments in subscription '{uri}'")
+
+    pydantic_model = None
+    positional_args = []
+    for type_ in hints.values():
+        if issubclass(type_, BaseModel):
+            if len(hints) != 1:
+                raise RuntimeError(
+                    f"Cannot mix pydantic dataclass with other types in signature of subscription '{uri}'"
+                )
+
+            pydantic_model = type_
+
+            for key, value in pydantic_model.model_fields.items():
+                if value.is_required:
+                    positional_args.append(key)
+
+    return pydantic_model, positional_args
+
+
+def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
     config_path = os.path.join(directory, "client.yaml")
     if not os.path.exists(config_path):
         print("client.yaml not found, initialize a client first")
@@ -190,37 +288,41 @@ def handle_start(app: str, url: str, realm: str, directory: str):
     if not isinstance(app, App):
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
-    async def _connect_async():
-        client = AsyncClient()
-        session = await client.connect(config.url, config.realm)
-        app.set_session(session)
-
-        for uri, func in app.procedures.items():
-            await register_async(session, uri, func)
-
-        for uri, func in app.topics.items():
-            await session.subscribe(uri, func)
-
-        print("connected", session.base_session.realm)
-
-    def _connect_sync():
-        client = Client()
-        session = client.connect(config.url, config.realm)
-        app.set_session(session)
-
-        for uri, func in app.procedures.items():
-            session.register(uri, func)
-
-        for uri, func in app.topics.items():
-            session.subscribe(uri, func)
-
-        print("connected", session.base_session.realm)
-
-    run(_connect_async())
-    # _connect_sync()
+    if asyncio:
+        run(connect_async(app, config))
+    else:
+        connect_sync(app, config)
 
 
-def handle_init(url: str, realm: str, authid: str, auth_method: str):
+async def connect_async(app: App, config: ClientConfig):
+    client = AsyncClient()
+    session = await client.connect(config.url, config.realm)
+    app.set_session(session)
+
+    for uri, func in app.procedures.items():
+        await register_async(session, uri, func)
+
+    for uri, func in app.topics.items():
+        await subscribe_async(session, uri, func)
+
+    print("connected", session.base_session.realm)
+
+
+def connect_sync(app: App, config: ClientConfig):
+    client = Client()
+    session = client.connect(config.url, config.realm)
+    app.set_session(session)
+
+    for uri, func in app.procedures.items():
+        register_sync(session, uri, func)
+
+    for uri, func in app.topics.items():
+        subscribe_sync(session, uri, func)
+
+    print("connected", session.base_session.realm)
+
+
+def handle_init(url: str, realm: str, authid: str, authmethod: str, directory: str):
     if os.path.exists("client.yaml"):
         print("client.yaml already exists")
         exit(1)
@@ -229,11 +331,11 @@ def handle_init(url: str, realm: str, authid: str, auth_method: str):
         f.write(
             yaml.dump(
                 {
-                    "entrypoint": "main:app",
                     "url": url,
                     "realm": realm,
                     "authid": authid,
-                    "auth_method": auth_method,
+                    "authmethod": authmethod,
+                    "directory": directory,
                 }
             )
         )
@@ -254,7 +356,8 @@ def add_client_subparser(subparsers):
     start.add_argument("--url", type=str, default="ws://127.0.0.1:8080/ws")
     start.add_argument("--realm", type=str, default="realm1")
     start.add_argument("--directory", type=str, default=".")
-    start.set_defaults(func=lambda args: handle_start(args.APP, args.url, args.realm, args.directory))
+    start.add_argument("--asyncio", action="store_true", default=False)
+    start.set_defaults(func=lambda args: handle_start(args.APP, args.url, args.realm, args.directory, args.asyncio))
 
     stop = client_subparsers.add_parser("stop", help="Stop client")
     stop.add_argument("--directory", type=str, default=".")
@@ -265,4 +368,5 @@ def add_client_subparser(subparsers):
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
     init.add_argument("--authmethod", type=str, default="anonymous")
-    init.set_defaults(func=lambda args: handle_init(args.url, args.realm, args.authid, args.authmethod))
+    init.add_argument("--directory", type=str, default=".")
+    init.set_defaults(func=lambda args: handle_init(args.url, args.realm, args.authid, args.authmethod, args.directory))
