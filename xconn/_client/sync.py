@@ -1,11 +1,15 @@
 import inspect
 
 from xconn import App
-from xconn._client.helpers import _validate_procedure_function, _validate_topic_function, _handle_result
+from xconn._client.helpers import (
+    _validate_procedure_function,
+    _validate_topic_function,
+    _handle_result,
+    _sanitize_incoming_data,
+)
 from xconn._client.types import ClientConfig
 from xconn.client import Client
 from xconn.session import Session
-from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
 
 
@@ -31,15 +35,9 @@ def register_sync(session: Session, uri: str, func: callable):
 
     def _handle_invocation(invocation: Invocation) -> Result:
         if model is not None:
-            args = invocation.args if invocation.args is not None else []
-            kwargs = invocation.kwargs if invocation.kwargs is not None else {}
+            kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, positional_args)
 
-            if len(args) != len(positional_args):
-                raise ApplicationError("foo.bar")
-
-            args_with_keys = dict(zip(positional_args, args))
-
-            result = func(model(**args_with_keys, **kwargs))
+            result = func(model(**kwargs))
             return _handle_result(result, response_model, response_positional_args)
 
         result = func(invocation)
@@ -56,14 +54,8 @@ def subscribe_sync(session: Session, topic: str, func: callable):
 
     def _handle_event(event: Event):
         if model is not None:
-            args = event.args if event.args is not None else []
-            kwargs = event.kwargs if event.kwargs is not None else {}
-
-            if len(args) != len(positional_args):
-                raise ApplicationError("foo.bar")
-
-            args_with_keys = dict(zip(positional_args, args))
-            func(model(**args_with_keys, **kwargs))
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
+            func(model(**kwargs))
 
         func(event)
 

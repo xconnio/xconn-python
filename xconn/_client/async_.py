@@ -1,11 +1,15 @@
 import inspect
 
 from xconn import App
-from xconn._client.helpers import _validate_procedure_function, _validate_topic_function, _handle_result
+from xconn._client.helpers import (
+    _validate_procedure_function,
+    _validate_topic_function,
+    _handle_result,
+    _sanitize_incoming_data,
+)
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
 from xconn.async_session import AsyncSession
-from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
 
 
@@ -31,15 +35,9 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
     async def _handle_invocation(invocation: Invocation) -> Result:
         if model is not None:
-            args = invocation.args if invocation.args is not None else []
-            kwargs = invocation.kwargs if invocation.kwargs is not None else {}
+            kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, positional_args)
 
-            if len(args) != len(positional_args):
-                raise ApplicationError("foo.bar")
-
-            args_with_keys = dict(zip(positional_args, args))
-
-            result = await func(model(**args_with_keys, **kwargs))
+            result = await func(model(**kwargs))
             return _handle_result(result, response_model, response_positional_args)
 
         result = await func(invocation)
@@ -56,15 +54,9 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
 
     async def _handle_event(event: Event) -> None:
         if model is not None:
-            args = event.args if event.args is not None else []
-            kwargs = event.kwargs if event.kwargs is not None else {}
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
 
-            if len(args) != len(positional_args):
-                raise ApplicationError("foo.bar")
-
-            args_with_keys = dict(zip(positional_args, args))
-
-            await func(model(**args_with_keys, **kwargs))
+            await func(model(**kwargs))
 
         await func(event)
 
