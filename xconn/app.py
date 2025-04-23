@@ -29,9 +29,13 @@ class IComponent:
         raise NotImplementedError()
 
 
-def register(procedure: str):
+def register(
+    procedure: str,
+    response_model: Type[BaseModel] | None = None,
+):
     def _register(func):
         func.__xconn_procedure__ = procedure
+        func.__xconn_response_model__ = response_model
         return func
 
     return _register

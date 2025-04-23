@@ -7,17 +7,38 @@ from xconn.types import Result, Event, Invocation
 comp = Component()
 
 
+class Address(BaseModel):
+    street: str
+    city: str
+    country: str | None = None
+
+
+class ComplexModel(BaseModel):
+    name: str
+    age: int
+    addresses: list[Address]
+
+
 class Data(BaseModel):
     name: str
 
 
 class ReturnData(BaseModel):
     name: str
+    city: str
+
+    model_config = {"from_attributes": True}
+
+
+class MyData:
+    def __init__(self):
+        super().__init__()
+        self.name = "my name"
 
 
 @comp.register("io.xconn.component.echo", response_model=ReturnData)
-async def included_echo(data: Data) -> Result:
-    return Result(args=[data.name])
+async def included_echo(data: Data) -> tuple[str, str]:
+    return "hello", "ok"
 
 
 @comp.subscribe("io.xconn.component.yo")
@@ -27,9 +48,9 @@ def included_event(event: Event) -> None:
 
 
 class Test(Component):
-    @register("hello")
+    @register("hello", response_model=ReturnData)
     async def hello(self, name: str):
-        print("CALLED", name)
+        return ("hello", "ok", 1, None), {"name": 1}
 
     @subscribe("topic")
     def topic(self, event):

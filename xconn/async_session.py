@@ -1,13 +1,12 @@
 import asyncio
-import inspect
 from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
 
-from pydantic import ValidationError
 from websockets.protocol import State
 from wampproto import messages, idgen, session
 
 from xconn import types, uris as xconn_uris, exception
+from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
@@ -107,9 +106,9 @@ class AsyncSession:
                     messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
                 )
                 await self.base_session.send(data)
-            except ValidationError as e:
+            except ApplicationError as e:
                 msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
+                    messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()])
                 )
                 data = self.session.send_message(msg_to_send)
                 await self.base_session.send(data)

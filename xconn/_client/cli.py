@@ -2,9 +2,10 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 import importlib
 import inspect
+import json
 import os
 import sys
-from typing import get_type_hints
+from typing import get_type_hints, Union
 
 from pydantic import BaseModel
 import yaml
@@ -14,6 +15,9 @@ from xconn.async_session import AsyncSession
 from xconn import App, run
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
+
+
+Primitive = Union[str, int, float, bool, None, bytes, dict, tuple]
 
 
 @dataclass
@@ -29,9 +33,7 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"procedure '{uri}' must be a coroutine function")
 
-    pydantic_model, response_model, return_type_is_result, positional_args, response_positional_args = (
-        _validate_function(func, uri)
-    )
+    pydantic_model, response_model, positional_args, response_positional_args = _validate_function(func, uri)
 
     async def _handle_invocation(invocation: Invocation) -> Result:
         if pydantic_model is not None:
@@ -44,10 +46,10 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
             args_with_keys = dict(zip(positional_args, args))
 
             result = await func(pydantic_model(**args_with_keys, **kwargs))
-            return _handle_result(result, response_model, positional_args, response_positional_args)
+            return _handle_result(result, response_model, response_positional_args)
 
         result = await func(invocation)
-        return _handle_result(result, response_model, positional_args, response_positional_args)
+        return _handle_result(result, response_model, response_positional_args)
 
     await session.register(uri, _handle_invocation)
 
@@ -59,7 +61,7 @@ def _validate_function(func: callable, uri: str):
             raise RuntimeError(f"Missing type hint for parameter: '{name}' in function '{func.__name__}'")
 
     hints = get_type_hints(func)
-    return_type = hints.pop("return") if "return" in hints else None
+    hints.pop("return") if "return" in hints else None
 
     if Invocation in hints.values():
         if len(hints) != 1:
@@ -78,47 +80,89 @@ def _validate_function(func: callable, uri: str):
                 if value.is_required:
                     positional_args.append(key)
 
-    response_model = None
+    response_model = func.__xconn_response_model__
     response_positional_args = []
-    return_type_is_result = return_type is Result
-    if return_type_is_result:
-        if func.__xconn_response_model__ is not None:
-            response_model = func.__xconn_response_model__
-            for key, value in response_model.model_fields.items():
-                if value.is_required:
-                    response_positional_args.append(key)
+    if response_model is not None:
+        for key, value in response_model.model_fields.items():
+            if value.is_required:
+                response_positional_args.append(key)
 
-    return pydantic_model, response_model, return_type_is_result, positional_args, response_positional_args
+    return pydantic_model, response_model, positional_args, response_positional_args
+
+
+def is_primitive(obj) -> bool:
+    return isinstance(obj, (str, int, float, bool, bytes, type(None)))
 
 
 def _handle_result(
-    result: Result | None,
+    result: Result | tuple | Primitive,
     response_model: type[BaseModel] | None,
-    positional_args: list[str],
     response_positional_args: list[str],
-):
+) -> Result:
     if result is None:
         if response_model is not None:
-            raise ApplicationError("wamp.error.internal_error")
+            raise ApplicationError(
+                "wamp.error.internal_error", "Procedure returned None, but a response model was provided."
+            )
 
         return Result()
 
-    if isinstance(result, Result) and response_model is not None:
+    if isinstance(result, Result):
+        if response_model is None:
+            return result
+
         response_args = result.args if result.args is not None else []
         response_kwargs = result.kwargs if result.kwargs is not None else {}
 
-        if len(response_args) != len(positional_args):
-            raise ApplicationError("foo.bar.2")
+        # If the Result object was returned, we need to be able to map
+        # its args to their keys so that the pydantic model can be initialized.
+        if len(response_args) != len(response_positional_args):
+            raise ApplicationError("wamp.error.internal_error")
 
         args_with_keys = dict(zip(response_positional_args, response_args))
 
+        # FIXME: catch ValidationError and return ApplicationError
         args = response_model(**args_with_keys, **response_kwargs)
-        return Result(args=[args.dict()])
+        return Result(args=[args.model_dump()])
+
+    if response_model is None:
+        # No response model provided, return the result as-is.
+        # We avoid validating the data and shift the responsibility
+        # to the serializer.
+        return Result(args=[result])
+
+    if is_primitive(result):
+        if len(response_positional_args) != 1:
+            raise ApplicationError(
+                "wamp.error.internal_error",
+                f"Procedure returned a single primitive but response model has {len(response_positional_args)} positional args.",
+            )
+
+        # FIXME: catch ValidationError and return ApplicationError
+        args = response_model(**{response_positional_args[0]: result})
+        return Result(args=[args.model_dump()])
+
+    # If the result is a tuple, it usually means a python function returned multiple values.
+    # Though that might not always be the case, and a function may explicitly return a tuple as well.
+    if isinstance(result, tuple):
+        if len(result) != len(response_positional_args):
+            raise ApplicationError(
+                "wamp.error.internal_error",
+                f"Procedure returned {len(result)} values but the response model has {len(response_positional_args)} args.",
+            )
+
+        args_with_keys = dict(zip(response_positional_args, result))
+
+        # FIXME: catch ValidationError and return ApplicationError
+        args = response_model(**args_with_keys)
+        return Result(args=[args.model_dump()])
 
     if isinstance(result, list):
-        raise ApplicationError("foo.bar.3")
+        # FIXME: catch ValidationError and return ApplicationError
+        return Result(args=[json.loads(response_model.from_orm(item).json()) for item in result])
 
-    return Result(args=[result])
+    # FIXME: catch ValidationError and return ApplicationError
+    return Result(args=[json.loads(response_model.from_orm(result).json())])
 
 
 def subscribe(session, event: Event):
