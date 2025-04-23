@@ -170,7 +170,10 @@ class AsyncSession:
             raise ValueError("received unknown message")
 
     async def register(
-        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
+        self,
+        procedure: str,
+        invocation_handler: Callable[[types.Invocation], Awaitable[types.Result]],
+        options: dict = None,
     ) -> types.Registration:
         register_response = register(
             self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
@@ -197,7 +200,7 @@ class AsyncSession:
         return await call_response.future
 
     async def subscribe(
-        self, topic: str, event_handler: Callable[[types.Event], None], options: dict | None = None
+        self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None
     ) -> types.Subscription:
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
