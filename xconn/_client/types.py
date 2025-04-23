@@ -7,4 +7,6 @@ class ClientConfig:
     realm: str
     authid: str
     authmethod: str
-    directory: str
+
+    secret: str | None = None
+    directory: str | None = None

@@ -22,6 +22,12 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
 
     config = ClientConfig(**config_raw)
 
+    if url is not None and url != "":
+        config.url = url
+
+    if realm is not None and realm != "":
+        config.realm = realm
+
     split = app.split(":")
     if len(split) != 2:
         raise RuntimeError("invalid app argument, must be of format: module:instance")
@@ -38,7 +44,7 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
         connect_sync(app, config)
 
 
-def handle_init(url: str, realm: str, authid: str, authmethod: str, directory: str):
+def handle_init(url: str, realm: str, authid: str, authmethod: str):
     if os.path.exists("client.yaml"):
         print("client.yaml already exists")
         exit(1)
@@ -51,7 +57,6 @@ def handle_init(url: str, realm: str, authid: str, authmethod: str, directory: s
                     "realm": realm,
                     "authid": authid,
                     "authmethod": authmethod,
-                    "directory": directory,
                 }
             )
         )
@@ -84,5 +89,4 @@ def add_client_subparser(subparsers):
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
     init.add_argument("--authmethod", type=str, default="anonymous")
-    init.add_argument("--directory", type=str, default=".")
-    init.set_defaults(func=lambda args: handle_init(args.url, args.realm, args.authid, args.authmethod, args.directory))
+    init.set_defaults(func=lambda args: handle_init(args.url, args.realm, args.authid, args.authmethod))
