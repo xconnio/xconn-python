@@ -15,8 +15,7 @@ AUTHENTICATORS = [
     auth.AnonymousAuthenticator(""),
     auth.TicketAuthenticator("ticket-user", "ticket-pass", {}),
     auth.WAMPCRAAuthenticator("wamp-cra-user", "cra-secret", {}),
-    # FIXME: WAMPCRA with salt is broken in crossbar
-    # auth.WAMPCRAAuthenticator("wamp-cra-salt-user", "cra-salt-secret", {}),
+    auth.WAMPCRAAuthenticator("wamp-cra-salt-user", "cra-salt-secret", {}),
     auth.CryptoSignAuthenticator(
         "cryptosign-user",
         "150085398329d255ad69e82bf47ced397bcec5b8fbeecd28a80edbbd85b49081",
