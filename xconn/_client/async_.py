@@ -17,7 +17,6 @@ from xconn.async_session import AsyncSession
 from xconn.types import Event, Invocation, Result
 
 
-
 async def connect_async(app: App, config: ClientConfig, serve_schema=False):
     client = AsyncClient()
     session = await client.connect(config.url, config.realm)
@@ -32,7 +31,6 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=False):
     for uri, func in app.topics.items():
         docs.append(collect_docs(uri, func, "topic"))
         await subscribe_async(session, uri, func)
-
 
     if serve_schema:
         await serve_schema_async("0.0.0.0", 9000, docs)
