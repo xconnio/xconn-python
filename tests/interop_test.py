@@ -81,7 +81,7 @@ def test_rpc(url: str, serializer: serializers.Serializer, authenticator: auth.I
 async def test_pubsub_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     args = ["hello", "wamp"]
 
-    def event_handler(event: Event):
+    async def event_handler(event: Event):
         assert event.args == args
 
     client = AsyncClient(authenticator=authenticator, serializer=serializer)
@@ -100,7 +100,7 @@ async def test_pubsub_async(url: str, serializer: serializers.Serializer, authen
 async def test_rpc_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     args = ["hello", "wamp"]
 
-    def inv_handler(inv: Invocation):
+    async def inv_handler(inv: Invocation):
         return Result(args=inv.args)
 
     client = AsyncClient(authenticator=authenticator, serializer=serializer)
