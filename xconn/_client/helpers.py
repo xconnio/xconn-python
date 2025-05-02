@@ -89,7 +89,8 @@ def _handle_result(
         if len(response_positional_args) != 1:
             raise ApplicationError(
                 "wamp.error.internal_error",
-                f"Procedure returned a single primitive but response model has {len(response_positional_args)} positional args.",
+                f"Procedure returned a single primitive but response model has "
+                f"{len(response_positional_args)} positional args.",
             )
 
         # FIXME: catch ValidationError and return ApplicationError
@@ -102,7 +103,8 @@ def _handle_result(
         if len(result) != len(response_positional_args):
             raise ApplicationError(
                 "wamp.error.internal_error",
-                f"Procedure returned {len(result)} values but the response model has {len(response_positional_args)} args.",
+                f"Procedure returned {len(result)} values but the response model has "
+                f"{len(response_positional_args)} args.",
             )
 
         args_with_keys = dict(zip(response_positional_args, result))

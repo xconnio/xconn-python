@@ -2,7 +2,6 @@ from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
 
-from pydantic import ValidationError
 from websockets.protocol import State
 from wampproto import messages, idgen, session, uris
 

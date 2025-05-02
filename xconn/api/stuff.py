@@ -1,6 +1,6 @@
 from typing import Annotated
 from pydantic import BaseModel
-from pydantic.dataclasses import dataclass
+from pydantic.dataclasses import dataclass, is_pydantic_dataclass
 
 
 @dataclass
@@ -40,8 +40,6 @@ class Depends:
         self.dependency = dependency
 
 
-from pydantic.dataclasses import is_pydantic_dataclass
-
 IGNORE_TYPES = (str, int, float, bool, list, dict, tuple, set)
 
 
@@ -53,8 +51,6 @@ def create_user(
 
 def validate_func(func):
     import inspect
-
-    has_pydantic_dataclass = False
 
     sig = inspect.signature(func)
     for name, param in sig.parameters.items():

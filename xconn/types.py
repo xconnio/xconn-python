@@ -4,7 +4,7 @@ import asyncio
 from asyncio import Future
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Awaitable, Union
+from typing import Callable, Awaitable
 
 from aiohttp import web
 from websockets.sync.connection import Connection
