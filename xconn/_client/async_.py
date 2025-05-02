@@ -1,7 +1,5 @@
 import inspect
 
-from aiohttp import web
-
 from xconn import App
 from xconn._client.helpers import (
     _validate_procedure_function,
