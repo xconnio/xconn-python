@@ -1,4 +1,5 @@
 import inspect
+import threading
 
 from xconn import App
 from xconn._client.helpers import (
@@ -6,6 +7,8 @@ from xconn._client.helpers import (
     _validate_topic_function,
     _handle_result,
     _sanitize_incoming_data,
+    collect_docs,
+    serve_schema_sync,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -13,18 +16,24 @@ from xconn.session import Session
 from xconn.types import Event, Invocation, Result
 
 
-def connect_sync(app: App, config: ClientConfig):
+def connect_sync(app: App, config: ClientConfig, serve_schema=False):
     client = Client()
     session = client.connect(config.url, config.realm)
     app.set_session(session)
+    docs = []
 
     for uri, func in app.procedures.items():
         register_sync(session, uri, func)
+        docs.append(collect_docs(uri, func, "procedure"))
 
     for uri, func in app.topics.items():
         subscribe_sync(session, uri, func)
+        docs.append(collect_docs(uri, func, "topic"))
 
     print("connected", session.base_session.realm)
+
+    if serve_schema:
+        threading.Thread(target=serve_schema_sync, args=("0.0.0.0", 9000, docs), daemon=True).start()
 
 
 def register_sync(session: Session, uri: str, func: callable):

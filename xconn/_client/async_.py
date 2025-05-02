@@ -1,11 +1,15 @@
 import inspect
 
+from aiohttp import web
+
 from xconn import App
 from xconn._client.helpers import (
     _validate_procedure_function,
     _validate_topic_function,
     _handle_result,
     _sanitize_incoming_data,
+    collect_docs,
+    serve_schema_async,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -13,18 +17,25 @@ from xconn.async_session import AsyncSession
 from xconn.types import Event, Invocation, Result
 
 
-async def connect_async(app: App, config: ClientConfig):
+
+async def connect_async(app: App, config: ClientConfig, serve_schema=False):
     client = AsyncClient()
     session = await client.connect(config.url, config.realm)
     app.set_session(session)
 
+    docs = []
+
     for uri, func in app.procedures.items():
+        docs.append(collect_docs(uri, func, "procedure"))
         await register_async(session, uri, func)
 
     for uri, func in app.topics.items():
+        docs.append(collect_docs(uri, func, "topic"))
         await subscribe_async(session, uri, func)
 
-    print("connected", session.base_session.realm)
+
+    if serve_schema:
+        await serve_schema_async("0.0.0.0", 9000, docs)
 
 
 async def register_async(session: AsyncSession, uri: str, func: callable):

@@ -39,9 +39,9 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     if asyncio:
-        run(connect_async(app, config))
+        run(connect_async(app, config, serve_schema=True))
     else:
-        connect_sync(app, config)
+        connect_sync(app, config, serve_schema=True)
 
 
 def handle_init(url: str, realm: str, authid: str, authmethod: str):

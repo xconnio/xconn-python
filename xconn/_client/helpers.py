@@ -1,7 +1,9 @@
+import asyncio
 import inspect
 import json
 from typing import get_type_hints
 
+from aiohttp import web
 from pydantic import BaseModel
 
 from xconn.exception import ApplicationError
@@ -38,7 +40,7 @@ def _validate_procedure_function(func: callable, uri: str):
                 if value.is_required:
                     positional_args.append(key)
 
-    response_model = func.__xconn_response_model__
+    response_model = getattr(func, "__xconn_response_model__", None)
     response_positional_args = []
     if response_model is not None:
         for key, value in response_model.model_fields.items():
@@ -163,3 +165,42 @@ def _sanitize_incoming_data(args: list, kwargs: dict, model_positional_args: lis
     args_with_keys.update(kwargs)
 
     return args_with_keys
+
+
+def collect_docs(uri: str, func: callable, type_: str):
+    model, response_model, positional_args, response_positional_args = _validate_procedure_function(func, uri)
+
+    data = {"uri": uri, "type": type_}
+    if model is not None:
+        data["in_model"] = model.model_json_schema()
+
+    if response_model is not None:
+        data["out_model"] = response_model.model_json_schema()
+
+    return data
+
+
+def create_app(docs: list[dict], endpoint: str):
+    app = web.Application()
+
+    async def serve_schema(_):
+        return web.json_response(docs)
+
+    app.router.add_get(endpoint, serve_schema)
+    return app
+
+
+async def serve_schema_async(host: str, port: int, docs: list, endpoint="/schema.json"):
+    app = create_app(docs, endpoint)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+    print(f"Schema available at http://{host}:{port}{endpoint}")
+
+
+def serve_schema_sync(host: str, port: int, docs, endpoint="/schema.json"):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(serve_schema_async(host, port, docs, endpoint=endpoint))
+    loop.run_forever()

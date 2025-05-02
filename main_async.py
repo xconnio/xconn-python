@@ -8,12 +8,15 @@ comp = Component()
 
 
 class InData(BaseModel):
-    name: str
+    first_name: str
+    last_name: str
+    age: int
 
 
 class OutData(BaseModel):
-    name: str
-    city: str
+    first_name: str
+    last_name: str
+    age: int
 
     model_config = {"from_attributes": True}
 
