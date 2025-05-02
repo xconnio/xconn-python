@@ -97,6 +97,28 @@ async def test_pubsub_async(url: str, serializer: serializers.Serializer, authen
 @pytest.mark.parametrize("url", ROUTER_URL)
 @pytest.mark.parametrize("serializer", SERIALIZERS)
 @pytest.mark.parametrize("authenticator", AUTHENTICATORS)
+async def test_pubsub_async_with_sync_event_handler(
+    url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator
+):
+    args = ["hello", "wamp"]
+
+    def event_handler(event: Event):
+        assert event.args == args
+
+    client = AsyncClient(authenticator=authenticator, serializer=serializer)
+    session = await client.connect(url, REALM)
+    topic = "io.xconn.test"
+    with pytest.raises(
+        RuntimeError, match=f"function {event_handler.__name__} for topic '{topic}' must be a coroutine"
+    ):
+        await session.subscribe(topic, event_handler, options={"acknowledge": True})
+
+    await session.leave()
+
+
+@pytest.mark.parametrize("url", ROUTER_URL)
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+@pytest.mark.parametrize("authenticator", AUTHENTICATORS)
 async def test_rpc_async(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     args = ["hello", "wamp"]
 
@@ -110,5 +132,25 @@ async def test_rpc_async(url: str, serializer: serializers.Serializer, authentic
     assert result.args == args
 
     await session.unregister(reg)
+
+    await session.leave()
+
+
+@pytest.mark.parametrize("url", ROUTER_URL)
+@pytest.mark.parametrize("serializer", SERIALIZERS)
+@pytest.mark.parametrize("authenticator", AUTHENTICATORS)
+async def test_rpc_async_with_sync_invocation_handler(
+    url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator
+):
+    def inv_handler(inv: Invocation):
+        return Result(args=inv.args)
+
+    client = AsyncClient(authenticator=authenticator, serializer=serializer)
+    session = await client.connect(url, REALM)
+    procedure = "io.xconn.test"
+    with pytest.raises(
+        RuntimeError, match=f"function {inv_handler.__name__} for procedure '{procedure}' must be a coroutine"
+    ):
+        await session.register(procedure, inv_handler)
 
     await session.leave()

@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
 
@@ -175,6 +176,11 @@ class AsyncSession:
         invocation_handler: Callable[[types.Invocation], Awaitable[types.Result]],
         options: dict = None,
     ) -> types.Registration:
+        if not inspect.iscoroutinefunction(invocation_handler):
+            raise RuntimeError(
+                f"function {invocation_handler.__name__} for procedure '{procedure}' must be a coroutine"
+            )
+
         register_response = register(
             self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
         )
@@ -202,6 +208,9 @@ class AsyncSession:
     async def subscribe(
         self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None
     ) -> types.Subscription:
+        if not inspect.iscoroutinefunction(event_handler):
+            raise RuntimeError(f"function {event_handler.__name__} for topic '{topic}' must be a coroutine")
+
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
 
