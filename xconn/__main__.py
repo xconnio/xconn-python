@@ -1,19 +1,21 @@
-import asyncio
 import argparse
+import asyncio
 import importlib
 import sys
 
 import uvloop
 from wampproto.serializers import CBORSerializer
 
-from xconn.app import XConnApp
+from xconn.app import App
 from xconn.router import Router
 from xconn.server import Server
 from xconn.async_session import AsyncSession
 from xconn.types import ServerSideLocalBaseSession, ClientSideLocalBaseSession
+from xconn._client.cli import add_client_subparser
+from xconn._router.cli import add_router_subparser
 
 
-def main():
+def main2():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--host", type=str, default="127.0.0.1")
@@ -30,8 +32,8 @@ def main():
     # TODO: find a better, reliable way
     sys.path.append(parsed.directory)
     module = importlib.import_module(split[0])
-    app: XConnApp = getattr(module, split[1])
-    if not isinstance(app, XConnApp):
+    app: App = getattr(module, split[1])
+    if not isinstance(app, App):
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     # uvloop makes things fast.
@@ -64,5 +66,19 @@ def main():
         pass
 
 
-if __name__ == "__main__":
-    main()
+def main():
+    parser = argparse.ArgumentParser(description="XConn CLI")
+    subparsers = parser.add_subparsers(dest="component")
+
+    # Add subcommands from other modules
+    add_client_subparser(subparsers)
+    add_router_subparser(subparsers)
+
+    args = parser.parse_args()
+
+    if hasattr(args, "func"):
+        args.func(args)
+    elif hasattr(args, "print_help"):
+        args.print_help()
+    else:
+        parser.print_help()
