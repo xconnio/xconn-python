@@ -1,3 +1,4 @@
+import os
 import asyncio
 import inspect
 from asyncio import Future, get_event_loop
@@ -264,3 +265,8 @@ class AsyncSession:
 
         if self.base_session.ws.state != State.CLOSED:
             await self.base_session.close()
+
+    async def ping(self) -> None:
+        payload = os.urandom(16)
+        pong_waiter = await self.base_session.ws.ping(payload)
+        await asyncio.wait_for(pong_waiter, timeout=10)
