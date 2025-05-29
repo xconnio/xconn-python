@@ -20,7 +20,11 @@ async def included_event(data: InData) -> None:
 class Test(Component):
     @register("hello", response_model=OutData)
     async def hello(self, inv: Invocation):
-        return "john", "wick", 40,
+        return (
+            "john",
+            "wick",
+            40,
+        )
 
     @subscribe("topic")
     async def topic(self, event: Event) -> None:
