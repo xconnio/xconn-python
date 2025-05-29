@@ -4,7 +4,7 @@ import asyncio
 from asyncio import Future
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Awaitable
 
 from aiohttp import web
 from websockets.sync.connection import Connection
@@ -20,7 +20,7 @@ class Registration:
 @dataclass
 class RegisterRequest:
     future: Future[Registration]
-    endpoint: Callable | Callable[[Invocation], Result]
+    endpoint: Callable | Callable[[Invocation], Result] | Callable[[Invocation], Awaitable[Result]]
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Subscription:
 @dataclass
 class SubscribeRequest:
     future: Future[Subscription]
-    endpoint: Callable[[Event], None]
+    endpoint: Callable[[Event], None] | Callable[[Event], Awaitable[None]]
 
 
 @dataclass
