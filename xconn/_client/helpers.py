@@ -158,9 +158,6 @@ def _sanitize_incoming_data(args: list, kwargs: dict, model_positional_args: lis
     args = args if args is not None else []
     kwargs = kwargs if kwargs is not None else {}
 
-    if len(args) != len(model_positional_args):
-        raise ApplicationError("foo.bar")
-
     args_with_keys = dict(zip(model_positional_args, args))
     args_with_keys.update(kwargs)
 
