@@ -3,11 +3,11 @@ import inspect
 from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
 
-from pydantic import ValidationError
 from websockets.protocol import State
 from wampproto import messages, idgen, session
 
 from xconn import types, uris as xconn_uris, exception
+from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
@@ -60,7 +60,7 @@ class AsyncSession:
         # PubSub data structures
         self.publish_requests: dict[int, Future[None]] = {}
         self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
-        self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
+        self.subscriptions: dict[int, Callable[[types.Event], Awaitable[None]]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
 
         self.goodbye_request = Future()
@@ -101,37 +101,26 @@ class AsyncSession:
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self.registrations[msg.registration_id]
+                result = await endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
 
-                if inspect.iscoroutinefunction(endpoint):
-                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
-                        result = await endpoint(*msg.args, **msg.kwargs)
-                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
-                        result = await endpoint(**msg.kwargs)
-                    elif msg.args is not None:
-                        result = await endpoint(*msg.args)
-                    else:
-                        result = await endpoint()
-                else:
-                    if msg.args is not None and len(msg.args) != 0 and msg.kwargs is not None:
-                        result = endpoint(*msg.args, **msg.kwargs)
-                    elif (msg.args is None or len(msg.args) == 0) and msg.kwargs is not None:
-                        result = endpoint(**msg.kwargs)
-                    elif msg.args is not None:
-                        result = endpoint(*msg.args)
-                    else:
-                        result = endpoint()
-
-                if isinstance(result, types.Result):
+                if result is None:
+                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                elif isinstance(result, types.Result):
                     data = self.session.send_message(
                         messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
                     )
                 else:
-                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
+                        type(result)
+                    )
+                    msg_to_send = messages.Error(
+                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                    )
+                    data = self.session.send_message(msg_to_send)
+
                 await self.base_session.send(data)
-            except ValidationError as e:
-                msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INVALID_ARGUMENT, [e.__str__()])
-                )
+            except ApplicationError as e:
+                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()]))
                 data = self.session.send_message(msg_to_send)
                 await self.base_session.send(data)
             except Exception as e:
@@ -153,7 +142,7 @@ class AsyncSession:
             request.set_result(None)
         elif isinstance(msg, messages.Event):
             endpoint = self.subscriptions[msg.subscription_id]
-            endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:
@@ -182,8 +171,16 @@ class AsyncSession:
             raise ValueError("received unknown message")
 
     async def register(
-        self, procedure: str, invocation_handler: Callable[[types.Invocation], types.Result], options: dict = None
+        self,
+        procedure: str,
+        invocation_handler: Callable[[types.Invocation], Awaitable[types.Result]],
+        options: dict = None,
     ) -> types.Registration:
+        if not inspect.iscoroutinefunction(invocation_handler):
+            raise RuntimeError(
+                f"function {invocation_handler.__name__} for procedure '{procedure}' must be a coroutine"
+            )
+
         register_response = register(
             self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
         )
@@ -209,8 +206,11 @@ class AsyncSession:
         return await call_response.future
 
     async def subscribe(
-        self, topic: str, event_handler: Callable[[types.Event], None], options: dict | None = None
+        self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None
     ) -> types.Subscription:
+        if not inspect.iscoroutinefunction(event_handler):
+            raise RuntimeError(f"function {event_handler.__name__} for topic '{topic}' must be a coroutine")
+
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
 

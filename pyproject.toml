@@ -14,7 +14,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 dependencies = [
   "websockets",
-  "wampproto@git+https://github.com/xconnio/wampproto-python",
+  "wampproto@git+https://github.com/xconnio/wampproto-python@4bde000bef276c274ecbc0e437b90247f8aa53cb",
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
