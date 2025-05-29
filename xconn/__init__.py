@@ -1,4 +1,4 @@
-from xconn.app import XConnApp
+from xconn.app import App, Component, register, subscribe
 from xconn.client import Client, AsyncClient
 from xconn.router import Router
 from xconn.server import Server
@@ -18,7 +18,10 @@ from wampproto.serializers import (
 )
 
 __all__ = [
-    "XConnApp",
+    "App",
+    "Component",
+    "register",
+    "subscribe",
     "Client",
     "AsyncClient",
     "Router",
