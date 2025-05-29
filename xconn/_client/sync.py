@@ -64,8 +64,17 @@ def subscribe_sync(session: Session, topic: str, func: callable):
     def _handle_event(event: Event):
         if model is not None:
             kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
-            func(model(**kwargs))
 
-        func(event)
+            try:
+                func(model(**kwargs))
+            except Exception as e:
+                print(e)
+
+            return
+
+        try:
+            func(event)
+        except Exception as e:
+            print(e)
 
     session.subscribe(topic, _handle_event)

@@ -1,57 +1,40 @@
-from pydantic import BaseModel
-
 from xconn import App, Component, register, subscribe
 from xconn.types import Result, Event, Invocation
 
-
-comp = Component()
-
-
-class InData(BaseModel):
-    first_name: str
-    last_name: str
-    age: int
+from models import InData, OutData
 
 
-class OutData(BaseModel):
-    first_name: str
-    last_name: str
-    age: int
-
-    model_config = {"from_attributes": True}
+functional_component = Component()
 
 
-class MyData:
-    def __init__(self):
-        super().__init__()
-        self.name = "my name"
+@functional_component.register("io.xconn.component.echo", response_model=OutData)
+async def included_echo(data: InData) -> tuple[str, str, int]:
+    return data.first_name, data.last_name, data.age
 
 
-@comp.register("io.xconn.component.echo", response_model=OutData)
-async def included_echo(data: InData) -> tuple[str, str]:
-    return "hello", "ok"
-
-
-@comp.subscribe("io.xconn.component.yo")
-async def included_event(event: Event) -> None:
-    print(app.session)
-    print(event.args)
+@functional_component.subscribe("io.xconn.component.yo")
+async def included_event(data: InData) -> None:
+    print(data)
 
 
 class Test(Component):
     @register("hello", response_model=OutData)
-    async def hello(self, name: str):
-        return ("hello", "ok", 1, None), {"name": 1}
+    async def hello(self, inv: Invocation):
+        return (
+            "john",
+            "wick",
+            40,
+        )
 
     @subscribe("topic")
-    async def topic(self, event: str):
+    async def topic(self, event: Event) -> None:
         print("TOPIC", event)
 
 
 class_component = Test()
 
 app = App()
-app.include_component(comp)
+app.include_component(functional_component)
 app.include_component(class_component)
 
 

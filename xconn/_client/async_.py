@@ -43,8 +43,10 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     async def _handle_invocation(invocation: Invocation) -> Result:
         if model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, positional_args)
-
-            result = await func(model(**kwargs))
+            if kwargs:
+                result = await func(model(**kwargs))
+            else:
+                result = await func(model())
             return _handle_result(result, response_model, response_positional_args)
 
         result = await func(invocation)
@@ -62,9 +64,16 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
     async def _handle_event(event: Event) -> None:
         if model is not None:
             kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
+            try:
+                await func(model(**kwargs))
+            except Exception as e:
+                print(e)
 
-            await func(model(**kwargs))
+            return
 
-        await func(event)
+        try:
+            await func(event)
+        except Exception as e:
+            print(e)
 
     await session.subscribe(topic, _handle_event)
