@@ -1,13 +1,13 @@
 from datetime import date
 import time
 
-from xconn import XConnApp
+from xconn import App
 from xconn.types import Invocation, Result
 
-from included_app import app as included_app
+from included_app import component
 
-app = XConnApp()
-app.include_app(included_app, prefix="test.")
+app = App()
+app.include_component(component, prefix="test.")
 
 
 @app.register("io.xconn.echo")

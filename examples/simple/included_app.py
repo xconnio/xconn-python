@@ -1,9 +1,9 @@
-from xconn import XConnApp
+from xconn import Component
 from xconn.types import Invocation, Result
 
-app = XConnApp()
+component = Component()
 
 
-@app.register("foo.bar.echo")
+@component.register("foo.bar.echo")
 def echo(invocation: Invocation) -> Result:
     return Result(args=invocation.args, kwargs=invocation.kwargs)
