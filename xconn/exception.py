@@ -6,13 +6,16 @@ class ApplicationError(Exception):
         self.kwargs = kwargs
 
     def __str__(self):
-        err = self.message
+        err = ""
+
         if self.args:
             args = ", ".join(str(arg) for arg in self.args)
-            err += f": {args}"
+            err += f"{args}"
+
         if self.kwargs:
             kwargs = ", ".join(f"{key}={value}" for key, value in self.kwargs.items())
             err += f": {kwargs}"
+
         return err
 
 
