@@ -12,10 +12,10 @@ uv pip install xconn
 writing your first API is quick
 
 ```python
-from xconn import XConnApp
+from xconn import App
 from xconn.types import Invocation, Result
 
-app = XConnApp()
+app = App()
 
 
 @app.register("io.xconn.echo")
