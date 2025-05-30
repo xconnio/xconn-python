@@ -8,6 +8,7 @@ from xconn._client.helpers import (
     _sanitize_incoming_data,
     collect_docs,
     serve_schema_async,
+    select_authenticator,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -16,8 +17,12 @@ from xconn.types import Event, Invocation, Result
 
 
 async def connect_async(app: App, config: ClientConfig, serve_schema=False):
-    client = AsyncClient()
+    auth = select_authenticator(config)
+    client = AsyncClient(authenticator=auth)
+
     session = await client.connect(config.url, config.realm)
+    print("connected", session.base_session.realm)
+
     app.set_session(session)
 
     docs = []

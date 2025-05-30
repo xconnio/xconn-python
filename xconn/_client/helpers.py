@@ -5,7 +5,14 @@ from typing import get_type_hints
 
 from aiohttp import web
 from pydantic import BaseModel
-
+from wampproto.auth import (
+    WAMPCRAAuthenticator,
+    TicketAuthenticator,
+    CryptoSignAuthenticator,
+    AnonymousAuthenticator,
+    IClientAuthenticator,
+)
+from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
 
@@ -201,3 +208,20 @@ def serve_schema_sync(host: str, port: int, docs, endpoint="/schema.json"):
     asyncio.set_event_loop(loop)
     loop.run_until_complete(serve_schema_async(host, port, docs, endpoint=endpoint))
     loop.run_forever()
+
+
+def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
+    if config.authmethod == "cryptosign" or config.authmethod == "wampcra" or config.authmethod == "ticket":
+        if config.secret == "":
+            raise RuntimeError("secret must not be empty")
+
+        if config.authmethod == "wampcra":
+            auth = WAMPCRAAuthenticator(config.authid, config.secret)
+        elif config.authmethod == "ticket":
+            auth = TicketAuthenticator(config.authid, config.secret)
+        else:
+            auth = CryptoSignAuthenticator(config.authid, config.secret)
+    else:
+        auth = AnonymousAuthenticator(authid=config.authid)
+
+    return auth

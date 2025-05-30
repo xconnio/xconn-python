@@ -9,6 +9,7 @@ from xconn._client.helpers import (
     _sanitize_incoming_data,
     collect_docs,
     serve_schema_sync,
+    select_authenticator,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -17,8 +18,12 @@ from xconn.types import Event, Invocation, Result
 
 
 def connect_sync(app: App, config: ClientConfig, serve_schema=False):
-    client = Client()
+    auth = select_authenticator(config)
+    client = Client(authenticator=auth)
+
     session = client.connect(config.url, config.realm)
+    print("connected", session.base_session.realm)
+
     app.set_session(session)
     docs = []
 
@@ -29,8 +34,6 @@ def connect_sync(app: App, config: ClientConfig, serve_schema=False):
     for uri, func in app.topics.items():
         subscribe_sync(session, uri, func)
         docs.append(collect_docs(uri, func, "topic"))
-
-    print("connected", session.base_session.realm)
 
     if serve_schema:
         threading.Thread(

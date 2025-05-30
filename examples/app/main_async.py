@@ -41,6 +41,7 @@ app.include_component(class_component)
 async def on_startup():
     print("app started...")
 
+
 app.add_event_handler("startup", on_startup)
 
 
