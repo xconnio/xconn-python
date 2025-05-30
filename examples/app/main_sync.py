@@ -38,6 +38,12 @@ app.include_component(functional_component)
 app.include_component(class_component)
 
 
+def on_startup():
+    print("app started...")
+
+app.add_event_handler("startup", on_startup)
+
+
 @app.register("io.xconn.echo")
 def echo(inv: Invocation) -> Result:
     return Result(args=inv.args, kwargs=inv.kwargs)
