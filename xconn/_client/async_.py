@@ -9,6 +9,7 @@ from xconn._client.helpers import (
     collect_docs,
     serve_schema_async,
     select_authenticator,
+    start_server_async,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -16,7 +17,10 @@ from xconn.async_session import AsyncSession
 from xconn.types import Event, Invocation, Result
 
 
-async def connect_async(app: App, config: ClientConfig, serve_schema=False):
+async def connect_async(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
+    if start_router:
+        await start_server_async(config)
+
     auth = select_authenticator(config)
     client = AsyncClient(authenticator=auth)
 
