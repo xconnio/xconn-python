@@ -53,6 +53,7 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
         return _handle_result(result, response_model, response_positional_args)
 
     await session.register(uri, _handle_invocation)
+    print(f"Registered procedure {uri}")
 
 
 async def subscribe_async(session: AsyncSession, topic: str, func: callable):
@@ -77,3 +78,4 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
             print(e)
 
     await session.subscribe(topic, _handle_event)
+    print(f"Subscribed topic {topic}")

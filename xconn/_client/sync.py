@@ -55,6 +55,7 @@ def register_sync(session: Session, uri: str, func: callable):
         return _handle_result(result, response_model, response_positional_args)
 
     session.register(uri, _handle_invocation)
+    print(f"Registered procedure {uri}")
 
 
 def subscribe_sync(session: Session, topic: str, func: callable):
@@ -80,3 +81,4 @@ def subscribe_sync(session: Session, topic: str, func: callable):
             print(e)
 
     session.subscribe(topic, _handle_event)
+    print(f"Subscribed topic {topic}")
