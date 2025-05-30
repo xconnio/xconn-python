@@ -1,4 +1,5 @@
-from typing import Callable, Type
+import asyncio
+from typing import Callable, Type, Awaitable
 import inspect
 
 from pydantic import BaseModel
@@ -111,10 +112,18 @@ class App(Component):
         self._session: Session | AsyncSession = None
         self._components: list[Component] = []
 
+        self._startup_handler: Callable | Awaitable[None] = None
+
     def set_session(self, session: Session | AsyncSession):
         self._session = session
         for component in self._components:
             component.set_session(session)
+
+        if self._startup_handler is not None:
+            if inspect.iscoroutinefunction(self._startup_handler):
+                asyncio.create_task(self._startup_handler())
+            else:
+                self._startup_handler()
 
     @property
     def components(self) -> list[Component]:
@@ -132,3 +141,9 @@ class App(Component):
                 self._topics.update({prefix + topic: func})
 
         self._components.append(component)
+
+    def add_event_handler(self, event_type: str, handler: Callable | Awaitable):
+        if event_type != "startup":
+            raise ValueError(f"event_type {event_type} is not supported")
+
+        self._startup_handler = handler

@@ -10,5 +10,5 @@ class ClientConfig:
     schema_host: str
     schema_port: int
 
-    secret: str | None = None
+    secret: str = ""
     directory: str | None = None

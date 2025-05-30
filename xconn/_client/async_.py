@@ -8,6 +8,7 @@ from xconn._client.helpers import (
     _sanitize_incoming_data,
     collect_docs,
     serve_schema_async,
+    select_authenticator,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -16,8 +17,12 @@ from xconn.types import Event, Invocation, Result
 
 
 async def connect_async(app: App, config: ClientConfig, serve_schema=False):
-    client = AsyncClient()
+    auth = select_authenticator(config)
+    client = AsyncClient(authenticator=auth)
+
     session = await client.connect(config.url, config.realm)
+    print("connected", session.base_session.realm)
+
     app.set_session(session)
 
     docs = []
@@ -53,6 +58,7 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
         return _handle_result(result, response_model, response_positional_args)
 
     await session.register(uri, _handle_invocation)
+    print(f"Registered procedure {uri}")
 
 
 async def subscribe_async(session: AsyncSession, topic: str, func: callable):
@@ -77,3 +83,4 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
             print(e)
 
     await session.subscribe(topic, _handle_event)
+    print(f"Subscribed topic {topic}")

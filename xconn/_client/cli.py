@@ -54,7 +54,7 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool, 
         connect_sync(app, config, serve_schema=True)
 
 
-def handle_init(url: str, realm: str, authid: str, authmethod: str, schema_host: str, schema_port: int):
+def handle_init(url: str, realm: str, authid: str, authmethod: str, secret: str, schema_host: str, schema_port: int):
     if os.path.exists("client.yaml"):
         print("client.yaml already exists")
         exit(1)
@@ -67,6 +67,7 @@ def handle_init(url: str, realm: str, authid: str, authmethod: str, schema_host:
                     "realm": realm,
                     "authid": authid,
                     "authmethod": authmethod,
+                    "secret": secret,
                     "schema_host": schema_host,
                     "schema_port": schema_port,
                 }
@@ -107,10 +108,11 @@ def add_client_subparser(subparsers):
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
     init.add_argument("--authmethod", type=str, default="anonymous")
+    init.add_argument("--secret", type=str, default="")
     init.add_argument("--schema-host", type=str, default="127.0.0.1")
     init.add_argument("--schema-port", type=int, default=9000)
     init.set_defaults(
         func=lambda args: handle_init(
-            args.url, args.realm, args.authid, args.authmethod, args.schema_host, args.schema_port
+            args.url, args.realm, args.authid, args.authmethod, args.secret, args.schema_host, args.schema_port
         )
     )
