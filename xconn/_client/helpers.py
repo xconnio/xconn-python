@@ -2,6 +2,7 @@ import asyncio
 import inspect
 import json
 from typing import get_type_hints
+from urllib.parse import urlparse
 
 from aiohttp import web
 from pydantic import BaseModel
@@ -12,6 +13,8 @@ from wampproto.auth import (
     AnonymousAuthenticator,
     IClientAuthenticator,
 )
+
+from xconn import Router, Server
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
@@ -225,3 +228,18 @@ def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
         auth = AnonymousAuthenticator(authid=config.authid)
 
     return auth
+
+
+async def start_server_async(config: ClientConfig):
+    r = Router()
+    r.add_realm(config.realm)
+    server = Server(r)
+    url_parsed = urlparse(config.url)
+    await server.start(url_parsed.hostname, url_parsed.port)
+
+
+def start_server_sync(config: ClientConfig):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_server_async(config))
+    loop.run_forever()

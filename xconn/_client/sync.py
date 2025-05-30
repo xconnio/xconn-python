@@ -10,6 +10,7 @@ from xconn._client.helpers import (
     collect_docs,
     serve_schema_sync,
     select_authenticator,
+    start_server_sync,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -17,7 +18,10 @@ from xconn.session import Session
 from xconn.types import Event, Invocation, Result
 
 
-def connect_sync(app: App, config: ClientConfig, serve_schema=False):
+def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
+    if start_router:
+        threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
+
     auth = select_authenticator(config)
     client = Client(authenticator=auth)
 

@@ -12,7 +12,16 @@ from xconn._client.async_ import connect_async
 from xconn._client.types import ClientConfig
 
 
-def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool, schema_host: str, schema_port: int):
+def handle_start(
+    app: str,
+    url: str,
+    realm: str,
+    directory: str,
+    asyncio: bool,
+    schema_host: str,
+    schema_port: int,
+    start_router: bool = False,
+):
     config_path = os.path.join(directory, "client.yaml")
     if not os.path.exists(config_path):
         print("client.yaml not found, initialize a client first")
@@ -49,9 +58,9 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool, 
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     if asyncio:
-        run(connect_async(app, config, serve_schema=True))
+        run(connect_async(app, config, serve_schema=True, start_router=start_router))
     else:
-        connect_sync(app, config, serve_schema=True)
+        connect_sync(app, config, serve_schema=True, start_router=start_router)
 
 
 def handle_init(url: str, realm: str, authid: str, authmethod: str, secret: str, schema_host: str, schema_port: int):
@@ -93,9 +102,17 @@ def add_client_subparser(subparsers):
     start.add_argument("--asyncio", action="store_true", default=False)
     start.add_argument("--schema-host", type=str, default="127.0.0.1")
     start.add_argument("--schema-port", type=int, default=9000)
+    start.add_argument("--router", action="store_true", default=False)
     start.set_defaults(
         func=lambda args: handle_start(
-            args.APP, args.url, args.realm, args.directory, args.asyncio, args.schema_host, args.schema_port
+            args.APP,
+            args.url,
+            args.realm,
+            args.directory,
+            args.asyncio,
+            args.schema_host,
+            args.schema_port,
+            args.router,
         )
     )
 
