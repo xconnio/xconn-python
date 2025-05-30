@@ -7,6 +7,8 @@ class ClientConfig:
     realm: str
     authid: str
     authmethod: str
+    schema_host: str
+    schema_port: int
 
     secret: str | None = None
     directory: str | None = None

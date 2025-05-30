@@ -33,7 +33,9 @@ def connect_sync(app: App, config: ClientConfig, serve_schema=False):
     print("connected", session.base_session.realm)
 
     if serve_schema:
-        threading.Thread(target=serve_schema_sync, args=("0.0.0.0", 9000, docs), daemon=True).start()
+        threading.Thread(
+            target=serve_schema_sync, args=(config.schema_host, config.schema_port, docs), daemon=True
+        ).start()
 
 
 def register_sync(session: Session, uri: str, func: callable):

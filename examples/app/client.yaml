@@ -2,3 +2,5 @@ authid: anonymous
 authmethod: anonymous
 realm: realm1
 url: ws://127.0.0.1:8080/ws
+schema_host: 127.0.0.1
+schema_port: 7000

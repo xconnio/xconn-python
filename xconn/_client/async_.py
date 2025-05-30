@@ -31,7 +31,7 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=False):
         await subscribe_async(session, uri, func)
 
     if serve_schema:
-        await serve_schema_async("0.0.0.0", 9000, docs)
+        await serve_schema_async(config.schema_host, config.schema_port, docs)
 
 
 async def register_async(session: AsyncSession, uri: str, func: callable):
