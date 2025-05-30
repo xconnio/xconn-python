@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 import importlib
 import os
 import sys
+import ipaddress
 
 import yaml
 
@@ -11,11 +12,14 @@ from xconn._client.async_ import connect_async
 from xconn._client.types import ClientConfig
 
 
-def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
+def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool, schema_host: str, schema_port: int):
     config_path = os.path.join(directory, "client.yaml")
     if not os.path.exists(config_path):
         print("client.yaml not found, initialize a client first")
         exit(1)
+
+    # validate schema host
+    ipaddress.ip_address(schema_host)
 
     with open(config_path) as f:
         config_raw = yaml.safe_load(f)
@@ -27,6 +31,12 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
 
     if realm is not None and realm != "":
         config.realm = realm
+
+    if schema_host is not None and schema_host != "":
+        config.schema_host = schema_host
+
+    if schema_port is not None and schema_port != "":
+        config.schema_port = schema_port
 
     split = app.split(":")
     if len(split) != 2:
@@ -44,7 +54,7 @@ def handle_start(app: str, url: str, realm: str, directory: str, asyncio: bool):
         connect_sync(app, config, serve_schema=True)
 
 
-def handle_init(url: str, realm: str, authid: str, authmethod: str):
+def handle_init(url: str, realm: str, authid: str, authmethod: str, schema_host: str, schema_port: int):
     if os.path.exists("client.yaml"):
         print("client.yaml already exists")
         exit(1)
@@ -57,6 +67,8 @@ def handle_init(url: str, realm: str, authid: str, authmethod: str):
                     "realm": realm,
                     "authid": authid,
                     "authmethod": authmethod,
+                    "schema_host": schema_host,
+                    "schema_port": schema_port,
                 }
             )
         )
@@ -78,7 +90,13 @@ def add_client_subparser(subparsers):
     start.add_argument("--realm", type=str, default="realm1")
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
-    start.set_defaults(func=lambda args: handle_start(args.APP, args.url, args.realm, args.directory, args.asyncio))
+    start.add_argument("--schema-host", type=str, default="127.0.0.1")
+    start.add_argument("--schema-port", type=int, default=9000)
+    start.set_defaults(
+        func=lambda args: handle_start(
+            args.APP, args.url, args.realm, args.directory, args.asyncio, args.schema_host, args.schema_port
+        )
+    )
 
     stop = client_subparsers.add_parser("stop", help="Stop client")
     stop.add_argument("--directory", type=str, default=".")
@@ -89,4 +107,10 @@ def add_client_subparser(subparsers):
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
     init.add_argument("--authmethod", type=str, default="anonymous")
-    init.set_defaults(func=lambda args: handle_init(args.url, args.realm, args.authid, args.authmethod))
+    init.add_argument("--schema-host", type=str, default="127.0.0.1")
+    init.add_argument("--schema-port", type=int, default=9000)
+    init.set_defaults(
+        func=lambda args: handle_init(
+            args.url, args.realm, args.authid, args.authmethod, args.schema_host, args.schema_port
+        )
+    )
