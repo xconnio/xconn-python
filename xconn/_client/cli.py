@@ -96,8 +96,8 @@ def add_client_subparser(subparsers):
 
     start = client_subparsers.add_parser("start", help="Start client")
     start.add_argument("APP", type=str)
-    start.add_argument("--url", type=str, default="ws://127.0.0.1:8080/ws")
-    start.add_argument("--realm", type=str, default="realm1")
+    start.add_argument("--url", type=str)
+    start.add_argument("--realm", type=str)
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
     start.add_argument("--schema-host", type=str, default="127.0.0.1")

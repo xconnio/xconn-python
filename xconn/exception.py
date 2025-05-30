@@ -1,4 +1,4 @@
-class ApplicationError(Exception):
+class ApplicationError(RuntimeError):
     def __init__(self, message: str, *args, **kwargs):
         super().__init__(*args)
         self.message = message
@@ -6,7 +6,7 @@ class ApplicationError(Exception):
         self.kwargs = kwargs
 
     def __str__(self):
-        err = ""
+        err = self.message
 
         if self.args:
             args = ", ".join(str(arg) for arg in self.args)
