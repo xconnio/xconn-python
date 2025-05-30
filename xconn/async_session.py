@@ -48,7 +48,11 @@ def call(
 
 
 class AsyncSession:
-    def __init__(self, base_session: types.IAsyncBaseSession):
+    def __init__(
+        self,
+        base_session: types.IAsyncBaseSession,
+        on_disconnect_listeners: list[Callable[[Awaitable[Any]], Any]] | None,
+    ):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
@@ -73,6 +77,8 @@ class AsyncSession:
 
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
+
+        self._on_disconnect_listeners = on_disconnect_listeners
 
         loop = get_event_loop()
         self.wait_task = loop.create_task(self.wait())
@@ -168,6 +174,8 @@ class AsyncSession:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
             self.goodbye_request.set_result(None)
+            for disconnect_listener in self._on_disconnect_listeners:
+                await disconnect_listener()
         else:
             raise ValueError("received unknown message")
 

@@ -47,7 +47,11 @@ def call(
 
 
 class Session:
-    def __init__(self, base_session: types.BaseSession):
+    def __init__(
+        self,
+        base_session: types.BaseSession,
+        on_disconnect_listeners: list[Callable[[Any], Any]] | None,
+    ):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
@@ -69,6 +73,8 @@ class Session:
 
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
+
+        self._on_disconnect_listeners = on_disconnect_listeners
 
         thread = Thread(target=self.wait)
         thread.start()
@@ -166,6 +172,9 @@ class Session:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
             self.goodbye_request.set_result(None)
+
+            for disconnect_listener in self._on_disconnect_listeners:
+                disconnect_listener()
         else:
             raise ValueError("received unknown message")
 
