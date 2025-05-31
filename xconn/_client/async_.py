@@ -22,7 +22,7 @@ async def connect_async(app: App, config: ClientConfig, serve_schema: bool = Fal
         await start_server_async(config)
 
     auth = select_authenticator(config)
-    client = AsyncClient(authenticator=auth)
+    client = AsyncClient(authenticator=auth, ws_config=config.websocket_config)
 
     session = await client.connect(config.url, config.realm)
     print("connected", session.base_session.realm)
