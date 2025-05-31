@@ -19,8 +19,12 @@ from xconn.types import Event, Invocation, Result
 
 
 def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
+    server_ready = threading.Event()
     if start_router:
-        threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
+        threading.Thread(target=start_server_sync, args=(config, server_ready), daemon=True).start()
+
+    if not server_ready.wait(timeout=10):
+        raise TimeoutError("Server did not become start within 10 seconds.")
 
     auth = select_authenticator(config)
     client = Client(authenticator=auth)

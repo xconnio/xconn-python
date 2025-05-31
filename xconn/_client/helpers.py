@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import json
+import threading
 from typing import get_type_hints
 from urllib.parse import urlparse
 
@@ -238,8 +239,9 @@ async def start_server_async(config: ClientConfig):
     await server.start(url_parsed.hostname, url_parsed.port)
 
 
-def start_server_sync(config: ClientConfig):
+def start_server_sync(config: ClientConfig, server_ready: threading.Event):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(start_server_async(config))
+    server_ready.set()
     loop.run_forever()
