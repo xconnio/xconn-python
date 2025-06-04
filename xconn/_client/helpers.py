@@ -221,9 +221,9 @@ def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
         if config.authmethod == "wampcra":
             auth = WAMPCRAAuthenticator(config.authid, config.secret)
         elif config.authmethod == "ticket":
-            auth = TicketAuthenticator(config.authid, config.secret)
+            auth = TicketAuthenticator(config.authid, config.ticket)
         else:
-            auth = CryptoSignAuthenticator(config.authid, config.secret)
+            auth = CryptoSignAuthenticator(config.authid, config.privkey)
     else:
         auth = AnonymousAuthenticator(authid=config.authid)
 
