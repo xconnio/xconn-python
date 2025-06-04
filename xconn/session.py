@@ -70,6 +70,8 @@ class Session:
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
 
+        self._disconnect_callback: list[Callable[[], None] | None] = []
+
         thread = Thread(target=self.wait)
         thread.start()
 
@@ -81,6 +83,9 @@ class Session:
                 break
 
             self.process_incoming_message(self.session.receive(data))
+
+        for callback in self._disconnect_callback:
+            callback()
 
     def process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -247,3 +252,7 @@ class Session:
         pong_event = self.base_session.ws.ping(payload)
         if not pong_event.wait(timeout=10):
             raise TimeoutError("ping timed out")
+
+    def on_disconnect(self, callback: Callable[[], None]) -> None:
+        if callback is not None:
+            self._disconnect_callback.append(callback)

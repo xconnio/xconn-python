@@ -74,6 +74,8 @@ class AsyncSession:
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
 
+        self._disconnect_callback: list[Callable[[], Awaitable[None]] | None] = []
+
         loop = get_event_loop()
         self.wait_task = loop.create_task(self.wait())
 
@@ -86,6 +88,9 @@ class AsyncSession:
                 break
 
             await self.process_incoming_message(self.session.receive(data))
+
+        for callback in self._disconnect_callback:
+            await callback()
 
     async def process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -270,3 +275,7 @@ class AsyncSession:
         payload = os.urandom(16)
         pong_waiter = await self.base_session.ws.ping(payload)
         await asyncio.wait_for(pong_waiter, timeout=10)
+
+    def on_disconnect(self, callback: Callable[[], Awaitable[None]]) -> None:
+        if callback is not None:
+            self._disconnect_callback.append(callback)
