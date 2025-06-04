@@ -223,7 +223,7 @@ def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
         elif config.authmethod == "ticket":
             auth = TicketAuthenticator(config.authid, config.ticket)
         else:
-            auth = CryptoSignAuthenticator(config.authid, config.privkey)
+            auth = CryptoSignAuthenticator(config.authid, config.private_key)
     else:
         auth = AnonymousAuthenticator(authid=config.authid)
 
