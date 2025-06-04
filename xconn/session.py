@@ -47,11 +47,7 @@ def call(
 
 
 class Session:
-    def __init__(
-        self,
-        base_session: types.BaseSession,
-        on_disconnect_listeners: list[Callable[[Any], Any]] | None,
-    ):
+    def __init__(self, base_session: types.BaseSession):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
@@ -74,7 +70,7 @@ class Session:
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
 
-        self._on_disconnect_listeners = on_disconnect_listeners
+        self._disconnect_callback: list[Callable[[], None] | None] = []
 
         thread = Thread(target=self.wait)
         thread.start()
@@ -87,6 +83,9 @@ class Session:
                 break
 
             self.process_incoming_message(self.session.receive(data))
+
+        for callback in self._disconnect_callback:
+            callback()
 
     def process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -172,9 +171,6 @@ class Session:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
             self.goodbye_request.set_result(None)
-
-            for disconnect_listener in self._on_disconnect_listeners:
-                disconnect_listener()
         else:
             raise ValueError("received unknown message")
 
@@ -256,3 +252,7 @@ class Session:
         pong_event = self.base_session.ws.ping(payload)
         if not pong_event.wait(timeout=10):
             raise TimeoutError("ping timed out")
+
+    def on_disconnect(self, callback: Callable[[], None]) -> None:
+        if callback is not None:
+            self._disconnect_callback.append(callback)

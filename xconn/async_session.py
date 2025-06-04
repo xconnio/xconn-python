@@ -48,11 +48,7 @@ def call(
 
 
 class AsyncSession:
-    def __init__(
-        self,
-        base_session: types.IAsyncBaseSession,
-        on_disconnect_listeners: list[Callable[[Awaitable[Any]], Any]] | None,
-    ):
+    def __init__(self, base_session: types.IAsyncBaseSession):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
         self.register_requests: dict[int, types.RegisterRequest] = {}
@@ -78,7 +74,7 @@ class AsyncSession:
         # initialize the sans-io wamp session
         self.session = session.WAMPSession(base_session.serializer)
 
-        self._on_disconnect_listeners = on_disconnect_listeners
+        self._disconnect_callback: list[Callable[[], Awaitable[None]] | None] = []
 
         loop = get_event_loop()
         self.wait_task = loop.create_task(self.wait())
@@ -92,6 +88,9 @@ class AsyncSession:
                 break
 
             await self.process_incoming_message(self.session.receive(data))
+
+        for callback in self._disconnect_callback:
+            await callback()
 
     async def process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -174,8 +173,6 @@ class AsyncSession:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
             self.goodbye_request.set_result(None)
-            for disconnect_listener in self._on_disconnect_listeners:
-                await disconnect_listener()
         else:
             raise ValueError("received unknown message")
 
@@ -278,3 +275,7 @@ class AsyncSession:
         payload = os.urandom(16)
         pong_waiter = await self.base_session.ws.ping(payload)
         await asyncio.wait_for(pong_waiter, timeout=10)
+
+    def on_disconnect(self, callback: Callable[[], Awaitable[None]]) -> None:
+        if callback is not None:
+            self._disconnect_callback.append(callback)

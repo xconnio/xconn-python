@@ -19,23 +19,24 @@ class Client:
         self._authenticator = authenticator
         self._serializer = serializer
         self._ws_config = ws_config
-        self._on_connect_listeners: list[Callable[[Any], Any]] = []
-        self._on_disconnect_listeners: list[Callable[[Any], Any]] = []
 
-    def connect(self, url: str, realm: str) -> Session:
+    def connect(
+        self,
+        url: str,
+        realm: str,
+        connect_callback: Callable[[], None] | None = None,
+        disconnect_callback: Callable[[], None] | None = None,
+    ) -> Session:
         j = WebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
         details = j.join(url, realm)
+        session = Session(details)
 
-        for connect_listener in self._on_connect_listeners:
-            connect_listener()
+        session.on_disconnect(disconnect_callback)
 
-        return Session(details, self._on_disconnect_listeners)
+        if connect_callback is not None:
+            connect_callback()
 
-    def add_on_connect_listener(self, listener: Callable[[Any], Any]):
-        self._on_connect_listeners.append(listener)
-
-    def add_on_disconnect_listener(self, listener: Callable[[Any], Any]):
-        self._on_disconnect_listeners.append(listener)
+        return session
 
 
 class AsyncClient:
@@ -48,20 +49,21 @@ class AsyncClient:
         self._authenticator = authenticator
         self._serializer = serializer
         self._ws_config = ws_config
-        self._on_connect_listeners: list[Callable[[Awaitable[Any]], Any]] = []
-        self._on_disconnect_listeners: list[Callable[[Awaitable[Any]], Any]] = []
 
-    async def connect(self, url: str, realm: str) -> AsyncSession:
+    async def connect(
+        self,
+        url: str,
+        realm: str,
+        connect_callback: Callable[[], Awaitable[None]] | None = None,
+        disconnect_callback: Callable[[], Awaitable[None]] | None = None,
+    ) -> AsyncSession:
         j = AsyncWebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
         details = await j.join(url, realm)
+        session = AsyncSession(details)
 
-        for connect_listener in self._on_connect_listeners:
-            await connect_listener()
+        session.on_disconnect(disconnect_callback)
 
-        return AsyncSession(details, self._on_disconnect_listeners)
+        if connect_callback is not None:
+            await connect_callback()
 
-    async def add_on_connect_listener(self, listener: Callable[[Awaitable[Any]], Any]):
-        self._on_connect_listeners.append(listener)
-
-    async def add_on_disconnect_listener(self, listener: Callable[[Awaitable[Any]], Any]):
-        self._on_disconnect_listeners.append(listener)
+        return session
