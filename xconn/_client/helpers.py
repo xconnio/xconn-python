@@ -243,3 +243,27 @@ def start_server_sync(config: ClientConfig):
     asyncio.set_event_loop(loop)
     loop.run_until_complete(start_server_async(config))
     loop.run_forever()
+
+
+def is_non_empty(value):
+    return value is not None and value != ""
+
+
+def validate_auth_inputs(private_key: str | None, ticket: str | None, secret: str | None) -> None:
+    if is_non_empty(private_key) and is_non_empty(ticket):
+        raise ValueError("provide only one of private key, ticket or secret")
+    elif is_non_empty(ticket) and is_non_empty(secret):
+        raise ValueError("provide only one of private key, ticket or secret")
+    elif is_non_empty(private_key) and is_non_empty(secret):
+        raise ValueError("provide only one of private key, ticket or secret")
+
+
+def select_authmethod(config: ClientConfig) -> str:
+    if is_non_empty(config.private_key) and not config.ticket and not config.secret:
+        return CryptoSignAuthenticator.TYPE
+    elif is_non_empty(config.ticket) and not config.private_key and not config.secret:
+        return TicketAuthenticator.TYPE
+    elif is_non_empty(config.secret) and not config.private_key and not config.ticket:
+        return WAMPCRAAuthenticator.TYPE
+
+    return AnonymousAuthenticator.TYPE
