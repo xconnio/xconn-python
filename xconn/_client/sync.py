@@ -1,5 +1,7 @@
 import inspect
+from multiprocessing import Process
 import threading
+import time
 
 from xconn import App
 from xconn._client.helpers import (
@@ -18,6 +20,16 @@ from xconn.session import Session
 from xconn.types import Event, Invocation, Result
 
 
+def _setup(app: App, session: Session):
+    app.set_session(session)
+
+    for uri, func in app.procedures.items():
+        register_sync(session, uri, func)
+
+    for uri, func in app.topics.items():
+        subscribe_sync(session, uri, func)
+
+
 def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
     if start_router:
         threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
@@ -25,24 +37,41 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
     auth = select_authenticator(config)
     client = Client(authenticator=auth)
 
-    session = client.connect(config.url, config.realm)
-    print("connected", session.base_session.realm)
+    def wait_and_connect(wait=10):
+        print(f"reconnecting in {wait} seconds...")
+        time.sleep(wait)
 
-    app.set_session(session)
-    docs = []
+        try:
+            new_session = client.connect(config.url, config.realm, on_connect, on_disconnect)
+        except Exception as e:
+            print(e)
 
-    for uri, func in app.procedures.items():
-        register_sync(session, uri, func)
-        docs.append(collect_docs(uri, func, "procedure"))
+            wait_and_connect(wait)
+            return
 
-    for uri, func in app.topics.items():
-        subscribe_sync(session, uri, func)
-        docs.append(collect_docs(uri, func, "topic"))
+        _setup(app, new_session)
+
+    def on_connect():
+        print("connected", config.realm)
+
+    def on_disconnect():
+        print("disconnected", config.realm)
+        wait_and_connect()
+
+    session = client.connect(config.url, config.realm, on_connect, on_disconnect)
+    _setup(app, session)
 
     if serve_schema:
-        threading.Thread(
-            target=serve_schema_sync, args=(config.schema_host, config.schema_port, docs), daemon=True
-        ).start()
+        docs = []
+
+        for uri, func in app.procedures.items():
+            docs.append(collect_docs(uri, func, "procedure"))
+
+        for uri, func in app.topics.items():
+            docs.append(collect_docs(uri, func, "topic"))
+
+        docs_process = Process(target=serve_schema_sync, args=(config.schema_host, config.schema_port, docs))
+        docs_process.start()
 
 
 def register_sync(session: Session, uri: str, func: callable):
