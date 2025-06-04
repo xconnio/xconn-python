@@ -1,4 +1,4 @@
-from typing import Callable, Any, Awaitable
+from typing import Callable, Awaitable
 
 from wampproto import auth, serializers
 from wampproto.auth import AnonymousAuthenticator
