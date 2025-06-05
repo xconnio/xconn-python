@@ -43,8 +43,6 @@ def handle_start(command_args: CommandArgs):
             command_args.authid,
             command_args.secret,
             command_args.ticket,
-            command_args.schema_host,
-            command_args.schema_port,
         )
         if any(flag is not None for flag in flags):
             raise RuntimeError("Use either config file OR the individual flags, not both")
@@ -129,8 +127,8 @@ def add_client_subparser(subparsers):
     start.add_argument("--realm", type=str)
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
-    start.add_argument("--schema-host", type=str)
-    start.add_argument("--schema-port", type=int)
+    start.add_argument("--schema-host", type=str, default="127.0.0.1")
+    start.add_argument("--schema-port", type=int, default=9000)
     start.add_argument("--router", action="store_true", default=False)
     start.add_argument("--authid", type=str)
     start.add_argument("--secret", type=str)
