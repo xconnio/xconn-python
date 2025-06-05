@@ -8,7 +8,7 @@ from typing import get_type_hints, Type, Optional
 from urllib.parse import urlparse
 
 from aiohttp import web
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, ValidationError
 from wampproto.auth import (
     WAMPCRAAuthenticator,
     TicketAuthenticator,
@@ -346,3 +346,10 @@ def wait_for_server(host: str, port: int, timeout: float):
             except (ConnectionRefusedError, socket.timeout):
                 time.sleep(0.2)
     raise TimeoutError(f"Server did not start listening on {host}:{port} within {timeout} seconds.")
+
+
+def handle_model_validation(model, **kwargs):
+    try:
+        return model(**kwargs)
+    except ValidationError as e:
+        raise ApplicationError("wamp.error.invalid_argument", e.json())

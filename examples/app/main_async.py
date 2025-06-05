@@ -57,5 +57,5 @@ async def login(event: Event) -> None:
 
 
 @app.register("io.xconn.dynamic")
-async def dynamic(name: str, city: str, age: int, address: str = None) -> None:
-    print(name, city, age, address)
+async def dynamic(name: str, city: str, age: int, address: str = None) -> tuple:
+    return name, city, age, address
