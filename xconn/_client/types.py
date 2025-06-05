@@ -1,11 +1,14 @@
 from pydantic import BaseModel, Field
 
+from xconn.types import WebsocketConfig
+
 
 class ClientConfig(BaseModel):
     schema_host: str
     schema_port: int
     url: str
     realm: str
+    websocket_config: WebsocketConfig = WebsocketConfig()
 
     authid: str | None = None
     authmethod: str | None = None
@@ -29,3 +32,7 @@ class CommandArgs(BaseModel):
     ticket: str | None = None
     secret: str | None = None
     private_key: str | None = None
+
+    open_timeout: int
+    ping_interval: int
+    ping_timeout: int
