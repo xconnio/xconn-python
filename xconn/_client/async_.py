@@ -33,7 +33,7 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
         await start_server_async(config)
 
     auth = select_authenticator(config)
-    client = AsyncClient(authenticator=auth)
+    client = AsyncClient(authenticator=auth, ws_config=config.websocket_config)
 
     async def wait_and_connect(wait=10):
         print(f"reconnecting in {wait} seconds...")

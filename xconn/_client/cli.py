@@ -8,6 +8,7 @@ import yaml
 
 from xconn import App, run
 from xconn._client import helpers
+from xconn.types import WebsocketConfig
 from xconn._client.sync import connect_sync
 from xconn._client.async_ import connect_async
 from xconn._client.types import ClientConfig, CommandArgs
@@ -26,6 +27,10 @@ def handle_start(command_args: CommandArgs):
             schema_host=command_args.schema_host,
             schema_port=command_args.schema_port,
         )
+        config.websocket_config = WebsocketConfig(
+            command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
+        )
+
     else:
         config_path = os.path.join(command_args.directory, "client.yaml")
         if not os.path.exists(config_path):
@@ -71,7 +76,18 @@ def handle_start(command_args: CommandArgs):
         connect_sync(app, config, serve_schema=True, start_router=command_args.start_router)
 
 
-def handle_init(url: str, realm: str, authid: str, authmethod: str, secret: str, schema_host: str, schema_port: int):
+def handle_init(
+    url: str,
+    realm: str,
+    authid: str,
+    authmethod: str,
+    secret: str,
+    schema_host: str,
+    schema_port: int,
+    open_timeout: int,
+    ping_interval: int,
+    ping_timeout: int,
+):
     if os.path.exists("client.yaml"):
         print("client.yaml already exists")
         exit(1)
@@ -87,6 +103,11 @@ def handle_init(url: str, realm: str, authid: str, authmethod: str, secret: str,
                     "secret": secret,
                     "schema_host": schema_host,
                     "schema_port": schema_port,
+                    "websocket_config": {
+                        "open_timeout": open_timeout,
+                        "ping_interval": ping_interval,
+                        "ping_timeout": ping_timeout,
+                    },
                 }
             )
         )
@@ -116,6 +137,9 @@ def add_client_subparser(subparsers):
     start.add_argument("--ticket", type=str)
     start.add_argument("--private-key", type=str)
     start.add_argument("--no-config", action="store_true", default=False)
+    start.add_argument("--open-timeout", type=int, default=10)
+    start.add_argument("--ping-interval", type=int, default=20)
+    start.add_argument("--ping-timeout", type=int, default=20)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
     stop = client_subparsers.add_parser("stop", help="Stop client")
@@ -130,8 +154,20 @@ def add_client_subparser(subparsers):
     init.add_argument("--secret", type=str, default="")
     init.add_argument("--schema-host", type=str, default="127.0.0.1")
     init.add_argument("--schema-port", type=int, default=9000)
+    init.add_argument("--open-timeout", type=int, default=10)
+    init.add_argument("--ping-interval", type=int, default=20)
+    init.add_argument("--ping-timeout", type=int, default=20)
     init.set_defaults(
         func=lambda args: handle_init(
-            args.url, args.realm, args.authid, args.authmethod, args.secret, args.schema_host, args.schema_port
+            args.url,
+            args.realm,
+            args.authid,
+            args.authmethod,
+            args.secret,
+            args.schema_host,
+            args.schema_port,
+            args.open_timeout,
+            args.ping_interval,
+            args.ping_timeout,
         )
     )

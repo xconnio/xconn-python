@@ -35,7 +35,7 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
         threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
 
     auth = select_authenticator(config)
-    client = Client(authenticator=auth)
+    client = Client(authenticator=auth, ws_config=config.websocket_config)
 
     def wait_and_connect(wait=10):
         print(f"reconnecting in {wait} seconds...")
