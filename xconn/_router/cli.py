@@ -1,8 +1,37 @@
+import os
+import shutil
+from pathlib import Path
 from argparse import ArgumentParser
+
+import yaml
+
+from xconn import Server, Router
+from xconn._router import helpers
+from xconn._router.types import RouterConfig
+
+DIRECTORY_CONFIG = ".xconn"
+CONFIG_FILE = os.path.join(DIRECTORY_CONFIG, "config.yaml")
 
 
 def start(args):
-    print("Router started")
+    if not os.path.exists(CONFIG_FILE):
+        print("config.yaml not found")
+        exit(1)
+
+    with open(CONFIG_FILE) as f:
+        data = yaml.safe_load(f)
+
+    config = RouterConfig(**data)
+
+    helpers.validate_realms(config.realms)
+
+    router = Router()
+
+    for realm in config.realms:
+        router.add_realm(realm.name)
+
+    server = Server(router)
+    print(server)
 
 
 def stop(args):
@@ -10,7 +39,14 @@ def stop(args):
 
 
 def init(args):
-    print("Router initialized")
+    if os.path.exists(CONFIG_FILE):
+        print("config.yaml already exists")
+        exit(1)
+
+    os.makedirs(DIRECTORY_CONFIG, exist_ok=True)
+    base_dir = Path(__file__).parent
+    source_path = os.path.join(base_dir, "config.yaml.in")
+    shutil.copy(source_path, CONFIG_FILE)
 
 
 def add_router_subparser(subparsers):
