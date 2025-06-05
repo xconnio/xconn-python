@@ -75,19 +75,28 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must be a coroutine")
 
-    model, response_model, positional_args, response_positional_args = _validate_procedure_function(func, uri)
+    meta = _validate_procedure_function(func, uri)
 
     async def _handle_invocation(invocation: Invocation) -> Result:
-        if model is not None:
-            kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, positional_args)
+        if meta.dynamic_model:
+            kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
+            meta.request_model(**kwargs)
+            result = await func(**kwargs)
+            return _handle_result(result, meta.response_model, meta.response_args)
+        elif meta.request_model is not None:
+            kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             if kwargs:
-                result = await func(model(**kwargs))
+                result = await func(meta.request_model(**kwargs))
             else:
-                result = await func(model())
-            return _handle_result(result, response_model, response_positional_args)
+                result = await func(meta.request_model())
 
-        result = await func(invocation)
-        return _handle_result(result, response_model, response_positional_args)
+            return _handle_result(result, meta.response_model, meta.response_args)
+        elif meta.no_args:
+            result = await func()
+            return _handle_result(result, meta.response_model, meta.response_args)
+        else:
+            result = await func(invocation)
+            return _handle_result(result, meta.response_model, meta.response_args)
 
     await session.register(uri, _handle_invocation)
     print(f"Registered procedure {uri}")
