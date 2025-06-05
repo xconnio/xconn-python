@@ -11,6 +11,7 @@ from xconn._client.helpers import (
     serve_schema_async,
     select_authenticator,
     start_server_async,
+    handle_model_validation,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -80,15 +81,13 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     async def _handle_invocation(invocation: Invocation) -> Result:
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
-            meta.request_model(**kwargs)
+            handle_model_validation(meta.request_model, **kwargs)
             result = await func(**kwargs)
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
-            if kwargs:
-                result = await func(meta.request_model(**kwargs))
-            else:
-                result = await func(meta.request_model())
+            model = handle_model_validation(meta.request_model, **kwargs)
+            result = await func(model)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:

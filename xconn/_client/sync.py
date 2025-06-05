@@ -15,6 +15,7 @@ from xconn._client.helpers import (
     select_authenticator,
     start_server_sync,
     wait_for_server,
+    handle_model_validation,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -88,13 +89,14 @@ def register_sync(session: Session, uri: str, func: callable):
     def _handle_invocation(invocation: Invocation) -> Result:
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
-            meta.request_model(**kwargs)
+            handle_model_validation(meta.request_model, **kwargs)
             result = func(**kwargs)
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
 
-            result = func(meta.request_model(**kwargs))
+            model = handle_model_validation(meta.request_model, **kwargs)
+            result = func(model)
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
             result = func()
