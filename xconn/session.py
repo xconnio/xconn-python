@@ -121,7 +121,7 @@ class Session:
 
                 self.base_session.send(data)
             except ApplicationError as e:
-                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, [e.__str__()]))
+                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
                 data = self.session.send_message(msg_to_send)
                 self.base_session.send(data)
             except Exception as e:

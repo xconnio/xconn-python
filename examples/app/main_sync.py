@@ -54,3 +54,8 @@ def echo(inv: Invocation) -> Result:
 def login(event: Event) -> None:
     print(app.session)
     print(event.args)
+
+
+@app.register("io.xconn.not_allowed", allowed_roles=["test"])
+def dynamic() -> None:
+    pass

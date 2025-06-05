@@ -12,6 +12,7 @@ from xconn._client.helpers import (
     select_authenticator,
     start_server_async,
     handle_model_validation,
+    ensure_caller_allowed,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -79,6 +80,8 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
     meta = _validate_procedure_function(func, uri)
 
     async def _handle_invocation(invocation: Invocation) -> Result:
+        ensure_caller_allowed(invocation.details, meta.allowed_roles)
+
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             handle_model_validation(meta.request_model, **kwargs)
