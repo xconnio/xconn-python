@@ -21,7 +21,6 @@ def start(args):
     with open(CONFIG_FILE) as f:
         data = yaml.safe_load(f)
 
-
     config = RouterConfig(**data)
 
     helpers.validate_realms(config.realms)
@@ -31,8 +30,8 @@ def start(args):
     for realm in config.realms:
         router.add_realm(realm.name)
 
-    server = Server(router, )
-    print(config)
+    server = Server(router)
+    print(server)
 
 
 def stop(args):
