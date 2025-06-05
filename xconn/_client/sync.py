@@ -1,3 +1,4 @@
+import random
 import inspect
 from multiprocessing import Process
 import threading
@@ -17,6 +18,8 @@ from xconn._client.helpers import (
     wait_for_server,
     handle_model_validation,
     ensure_caller_allowed,
+    INITIAL_WAIT,
+    MAX_WAIT,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -44,16 +47,17 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
     auth = select_authenticator(config)
     client = Client(authenticator=auth, ws_config=config.websocket_config)
 
-    def wait_and_connect(wait=10):
-        print(f"reconnecting in {wait} seconds...")
-        time.sleep(wait)
+    def wait_and_connect(previous_wait: float = INITIAL_WAIT):
+        next_wait = min(random.uniform(INITIAL_WAIT, previous_wait * 3), MAX_WAIT)
+        print(f"reconnecting in {next_wait:.1f} seconds...")
+        time.sleep(next_wait)
 
         try:
             new_session = client.connect(config.url, config.realm, on_connect, on_disconnect)
         except Exception as e:
             print(e)
 
-            wait_and_connect(wait)
+            wait_and_connect(next_wait)
             return
 
         _setup(app, new_session)

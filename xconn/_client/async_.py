@@ -1,3 +1,4 @@
+import random
 import asyncio
 import inspect
 
@@ -13,6 +14,8 @@ from xconn._client.helpers import (
     start_server_async,
     handle_model_validation,
     ensure_caller_allowed,
+    INITIAL_WAIT,
+    MAX_WAIT,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -37,16 +40,17 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
     auth = select_authenticator(config)
     client = AsyncClient(authenticator=auth, ws_config=config.websocket_config)
 
-    async def wait_and_connect(wait=10):
-        print(f"reconnecting in {wait} seconds...")
-        await asyncio.sleep(wait)
+    async def wait_and_connect(previous_wait: float = INITIAL_WAIT):
+        next_wait = min(random.uniform(INITIAL_WAIT, previous_wait * 3), MAX_WAIT)
+        print(f"reconnecting in {next_wait:.1f} seconds...")
+        await asyncio.sleep(next_wait)
 
         try:
             new_session = await client.connect(config.url, config.realm, on_connect, on_disconnect)
         except Exception as e:
             print(e)
 
-            await wait_and_connect(wait)
+            await wait_and_connect(next_wait)
             return
 
         await _setup(app, new_session)

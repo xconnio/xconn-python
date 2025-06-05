@@ -23,6 +23,10 @@ from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
 
 
+MAX_WAIT = 300
+INITIAL_WAIT = 1
+
+
 @dataclass
 class ProcedureMetadata:
     request_model: Type[BaseModel] | None
