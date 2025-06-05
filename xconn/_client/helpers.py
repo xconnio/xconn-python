@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import dataclass
 import inspect
 import json
-from typing import get_type_hints, Type, Optional
+from typing import get_type_hints, Type, Optional, Any
 from urllib.parse import urlparse
 
 from aiohttp import web
@@ -34,8 +34,10 @@ class ProcedureMetadata:
     request_kwargs: list[str]
     response_kwargs: list[str]
 
-    no_args: bool = False
-    dynamic_model: bool = False
+    no_args: bool
+    dynamic_model: bool
+
+    allowed_roles: list[str]
 
 
 def create_model_from_func(func):
@@ -114,6 +116,8 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
             else:
                 response_kwargs.append(key)
 
+    allowed_roles = getattr(func, "__xconn_allowed_roles__", [])
+
     return ProcedureMetadata(
         request_model=request_model,
         response_model=response_model,
@@ -123,6 +127,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
         response_kwargs=response_kwargs,
         no_args=no_args,
         dynamic_model=dynamic_model,
+        allowed_roles=allowed_roles,
     )
 
 
@@ -353,3 +358,20 @@ def handle_model_validation(model, **kwargs):
         return model(**kwargs)
     except ValidationError as e:
         raise ApplicationError("wamp.error.invalid_argument", e.json())
+
+
+def ensure_caller_allowed(call_details: dict[str, Any], allowed_roles: list[str]):
+    role = call_details.get("caller_authrole", None)
+    if role is None:
+        if len(allowed_roles) == 0:
+            return
+
+        msg = (
+            "Router did not send call details hence the authrole of the caller cannot be determined."
+            f" The caller must have one of following roles '{allowed_roles}'"
+        )
+        raise ApplicationError("wamp.error.internal_error", msg)
+
+    if role not in allowed_roles:
+        msg = f"The caller must have one of following roles '{allowed_roles}' got={role}"
+        raise ApplicationError("wamp.error.not_authorized", msg)

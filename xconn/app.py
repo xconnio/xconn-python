@@ -33,10 +33,12 @@ class IComponent:
 def register(
     procedure: str,
     response_model: Type[BaseModel] | None = None,
+    allowed_roles: list[str] = None,
 ):
     def _register(func):
         func.__xconn_procedure__ = procedure
         func.__xconn_response_model__ = response_model
+        func.__xconn_allowed_roles__ = allowed_roles if isinstance(allowed_roles, list) else []
         return func
 
     return _register
@@ -79,7 +81,7 @@ class Component(IComponent):
     def topics(self) -> dict[str, Callable]:
         return self._topics
 
-    def register(self, procedure: str, response_model: Type[BaseModel] | None = None):
+    def register(self, procedure: str, response_model: Type[BaseModel] | None = None, allowed_roles: list[str] = None):
         def _register(func):
             if procedure in self._procedures:
                 raise ValueError(f"procedure {procedure} already registered")
@@ -89,6 +91,7 @@ class Component(IComponent):
                     raise ValueError(f"response_model {response_model} is not a subclass of BaseModel")
 
             func.__xconn_response_model__ = response_model
+            func.__xconn_allowed_roles__ = allowed_roles if isinstance(allowed_roles, list) else []
             self._procedures[procedure] = func
 
         return _register

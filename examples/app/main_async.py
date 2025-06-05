@@ -59,3 +59,8 @@ async def login(event: Event) -> None:
 @app.register("io.xconn.dynamic")
 async def dynamic(name: str, city: str, age: int, address: str = None) -> tuple:
     return name, city, age, address
+
+
+@app.register("io.xconn.not_allowed", allowed_roles=["test"])
+async def not_allowed() -> None:
+    pass
