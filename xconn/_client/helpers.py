@@ -1,11 +1,12 @@
 import asyncio
+from dataclasses import dataclass
 import inspect
 import json
-from typing import get_type_hints
+from typing import get_type_hints, Type, Optional
 from urllib.parse import urlparse
 
 from aiohttp import web
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 from wampproto.auth import (
     WAMPCRAAuthenticator,
     TicketAuthenticator,
@@ -20,11 +21,43 @@ from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result
 
 
+@dataclass
+class ProcedureMetadata:
+    request_model: Type[BaseModel] | None
+    response_model: Type[BaseModel] | None
+
+    request_args: list[str]
+    response_args: list[str]
+
+    request_kwargs: list[str]
+    response_kwargs: list[str]
+
+    no_args: bool = False
+    dynamic_model: bool = False
+
+
+def create_model_from_func(func):
+    signature = inspect.signature(func)
+    type_hints = get_type_hints(func)
+    fields = {}
+
+    for param_name, param in signature.parameters.items():
+        annotated_type = type_hints.get(param_name)
+
+        # Handle default values
+        if param.default is inspect.Parameter.empty:
+            fields[param_name] = (annotated_type, ...)
+        else:
+            fields[param_name] = (Optional[annotated_type], param.default)
+
+    return create_model(func.__name__.capitalize() + "Model", **fields)
+
+
 def is_primitive(obj) -> bool:
     return isinstance(obj, (str, int, float, bool, bytes, type(None)))
 
 
-def _validate_procedure_function(func: callable, uri: str):
+def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
     sig = inspect.signature(func)
     for name, param in sig.parameters.items():
         if param.annotation is inspect._empty:
@@ -33,31 +66,62 @@ def _validate_procedure_function(func: callable, uri: str):
     hints = get_type_hints(func)
     hints.pop("return") if "return" in hints else None
 
-    if Invocation in hints.values():
-        if len(hints) != 1:
-            raise RuntimeError(f"Cannot use other types than 'Invocation' as arguments in procedure '{uri}'")
+    request_model = None
+    request_args = []
+    request_kwargs = []
+    no_args = False
+    dynamic_model = False
 
-    pydantic_model = None
-    positional_args = []
     for type_ in hints.values():
         if issubclass(type_, BaseModel):
             if len(hints) != 1:
-                raise RuntimeError(f"Cannot mix pydantic dataclass with other types in signature of procedure '{uri}'")
+                raise RuntimeError(f"Cannot mix pydantic BaseModel with other types in signature of procedure '{uri}'")
 
-            pydantic_model = type_
+            request_model = type_
+            break
 
-            for key, value in pydantic_model.model_fields.items():
-                if value.is_required:
-                    positional_args.append(key)
+    if Invocation in hints.values():
+        if len(hints) != 1:
+            raise RuntimeError(f"Cannot use other types than 'Invocation' as arguments in procedure '{uri}'")
+    elif request_model is not None:
+        for key, value in request_model.model_fields.items():
+            if value.is_required:
+                request_args.append(key)
+            else:
+                request_kwargs.append(key)
+    elif len(hints) == 0:
+        no_args = True
+    else:
+        # let's create a dynamic pydantic model based on the procedure signature
+        request_model = create_model_from_func(func)
+        for key, value in request_model.model_fields.items():
+            if value.is_required:
+                request_args.append(key)
+            else:
+                request_kwargs.append(key)
+
+        dynamic_model = True
 
     response_model = getattr(func, "__xconn_response_model__", None)
-    response_positional_args = []
+    response_args = []
+    response_kwargs = []
     if response_model is not None:
         for key, value in response_model.model_fields.items():
             if value.is_required:
-                response_positional_args.append(key)
+                response_args.append(key)
+            else:
+                response_kwargs.append(key)
 
-    return pydantic_model, response_model, positional_args, response_positional_args
+    return ProcedureMetadata(
+        request_model=request_model,
+        response_model=response_model,
+        request_args=request_args,
+        response_args=response_args,
+        request_kwargs=request_kwargs,
+        response_kwargs=response_kwargs,
+        no_args=no_args,
+        dynamic_model=dynamic_model,
+    )
 
 
 def _handle_result(
@@ -175,14 +239,14 @@ def _sanitize_incoming_data(args: list, kwargs: dict, model_positional_args: lis
 
 
 def collect_docs(uri: str, func: callable, type_: str):
-    model, response_model, positional_args, response_positional_args = _validate_procedure_function(func, uri)
+    meta = _validate_procedure_function(func, uri)
 
     data = {"uri": uri, "type": type_}
-    if model is not None:
-        data["in_model"] = model.model_json_schema()
+    if meta.request_model is not None:
+        data["in_model"] = meta.request_model.model_json_schema()
 
-    if response_model is not None:
-        data["out_model"] = response_model.model_json_schema()
+    if meta.response_model is not None:
+        data["out_model"] = meta.response_model.model_json_schema()
 
     return data
 

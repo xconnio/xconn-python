@@ -54,3 +54,8 @@ async def echo(inv: Invocation) -> Result:
 async def login(event: Event) -> None:
     print(app.session)
     print(event.args)
+
+
+@app.register("io.xconn.dynamic")
+async def dynamic(name: str, city: str, age: int, address: str = None) -> None:
+    print(name, city, age, address)
