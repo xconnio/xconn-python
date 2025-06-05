@@ -1,3 +1,5 @@
+import time
+import socket
 import asyncio
 from dataclasses import dataclass
 import inspect
@@ -331,3 +333,16 @@ def select_authmethod(config: ClientConfig) -> str:
         return WAMPCRAAuthenticator.TYPE
 
     return AnonymousAuthenticator.TYPE
+
+
+def wait_for_server(host: str, port: int, timeout: float):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.5)
+            try:
+                sock.connect((host, port))
+                return True
+            except (ConnectionRefusedError, socket.timeout):
+                time.sleep(0.2)
+    raise TimeoutError(f"Server did not start listening on {host}:{port} within {timeout} seconds.")

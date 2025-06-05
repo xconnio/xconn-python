@@ -2,6 +2,7 @@ import inspect
 from multiprocessing import Process
 import threading
 import time
+from urllib.parse import urlparse
 
 from xconn import App
 from xconn._client.helpers import (
@@ -13,6 +14,7 @@ from xconn._client.helpers import (
     serve_schema_sync,
     select_authenticator,
     start_server_sync,
+    wait_for_server,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -33,6 +35,9 @@ def _setup(app: App, session: Session):
 def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
     if start_router:
         threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
+
+    ws_url = urlparse(config.url)
+    wait_for_server(ws_url.hostname, ws_url.port, 10)
 
     auth = select_authenticator(config)
     client = Client(authenticator=auth, ws_config=config.websocket_config)
