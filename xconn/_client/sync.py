@@ -23,6 +23,7 @@ from xconn._client.helpers import (
     INITIAL_WAIT,
     MAX_WAIT,
     ProcedureMetadata,
+    assemble_call_details,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -110,13 +111,14 @@ def register_sync(session: Session, uri: str, func: callable):
 
     def _handle_invocation(invocation: Invocation) -> Result:
         ensure_caller_allowed(invocation.details, meta.allowed_roles)
+        details = assemble_call_details(uri, meta, invocation)
 
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             handle_model_validation(meta.request_model, **kwargs)
 
             with resolve_dependencies(meta) as deps:
-                result = func(**kwargs, **deps)
+                result = func(**kwargs, **deps, **details)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
@@ -124,17 +126,19 @@ def register_sync(session: Session, uri: str, func: callable):
             model = handle_model_validation(meta.request_model, **kwargs)
 
             with resolve_dependencies(meta) as deps:
-                result = func(model, **deps)
+                input_data = {meta.positional_field_name: model}
+                result = func(**input_data, **deps, **details)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
             with resolve_dependencies(meta) as deps:
-                result = func(**deps)
+                result = func(**deps, **details)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         else:
             with resolve_dependencies(meta) as deps:
-                result = func(invocation, **deps)
+                input_data = {meta.positional_field_name: invocation}
+                result = func(**input_data, **deps, **details)
 
             return _handle_result(result, meta.response_model, meta.response_args)
 

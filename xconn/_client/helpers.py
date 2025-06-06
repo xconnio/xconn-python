@@ -21,7 +21,7 @@ from wampproto.auth import (
 from xconn import Router, Server
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
-from xconn.types import Event, Invocation, Result, Depends
+from xconn.types import Event, Invocation, Result, Depends, CallDetails
 
 MAX_WAIT = 300
 INITIAL_WAIT = 1
@@ -48,6 +48,9 @@ class ProcedureMetadata:
     async_dependencies: dict[str, Awaitable]
     async_ctx_dependencies: dict[str, AsyncContextManager]
 
+    call_details_field: str | None
+    positional_field_name: str | None
+
 
 def create_model_from_func(func):
     signature = inspect.signature(func)
@@ -56,6 +59,8 @@ def create_model_from_func(func):
 
     for param_name, param in signature.parameters.items():
         annotated_type = type_hints.get(param_name)
+        if issubclass(annotated_type, CallDetails) or issubclass(annotated_type, Depends):
+            continue
 
         # Handle default values
         if param.default is inspect.Parameter.empty:
@@ -119,13 +124,36 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
     for key in async_ctx_dependencies.keys():
         del hints[key]
 
-    for type_ in hints.values():
+    # check if CallDetails are in the function
+    call_details_field = None
+    for name, type_ in hints.items():
+        if issubclass(type_, CallDetails):
+            if call_details_field is not None:
+                raise RuntimeError(f"Duplicate call details in function '{func.__name__}'")
+
+            call_details_field = name
+
+    if call_details_field is not None:
+        del hints[call_details_field]
+
+    positional_field_name: str | None = None
+
+    has_invocation_in_sig = False
+    for name, type_ in hints.items():
         if issubclass(type_, BaseModel):
             if len(hints) != 1:
                 raise RuntimeError(f"Cannot mix pydantic BaseModel with other types in signature of procedure '{uri}'")
 
             request_model = type_
+            positional_field_name = name
             break
+
+        if issubclass(type_, Invocation):
+            if has_invocation_in_sig:
+                raise RuntimeError(f"Cannot use other types than 'Invocation' as arguments in procedure '{uri}'")
+
+            has_invocation_in_sig = True
+            positional_field_name = name
 
     if Invocation in hints.values():
         if len(hints) != 1:
@@ -175,6 +203,8 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
         ctx_dependencies=ctx_dependencies,
         async_dependencies=async_dependencies,
         async_ctx_dependencies=async_ctx_dependencies,
+        call_details_field=call_details_field,
+        positional_field_name=positional_field_name,
     )
 
 
@@ -422,3 +452,15 @@ def ensure_caller_allowed(call_details: dict[str, Any], allowed_roles: list[str]
     if role not in allowed_roles:
         msg = f"The caller must have one of following roles '{allowed_roles}' got={role}"
         raise ApplicationError("wamp.error.not_authorized", msg)
+
+
+def assemble_call_details(uri: str, meta: ProcedureMetadata, invocation: Invocation):
+    details = {}
+    if meta.call_details_field is not None:
+        if not invocation.details:
+            msg = f"Endpoint for procedure {uri} expects CallDetails but router did not send them"
+            raise ApplicationError("wamp.error.internal_error", msg)
+
+        details[meta.call_details_field] = CallDetails(invocation.details)
+
+    return details

@@ -1,7 +1,7 @@
 from typing import Any, Generator
 
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation, Depends
+from xconn.types import Result, Event, Invocation, Depends, CallDetails
 
 from models import InData, OutData
 
@@ -75,5 +75,5 @@ def get_more() -> Generator[str, Any, None]:
 
 
 @app.register("io.xconn.depends")
-def not_allowed(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
-    print(db, test)
+def not_allowed(details: CallDetails, db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
+    print(details, db, test)

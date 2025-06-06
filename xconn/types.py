@@ -445,22 +445,22 @@ class _IncomingDetails(dict):
             for k, v in details.items():
                 self[k] = v
 
-    @property
-    def session_id(self) -> int | None:
-        return self.get("session_id")
-
-    @property
-    def authid(self) -> str | None:
-        return self.get("authid")
-
-    @property
-    def authrole(self) -> str | None:
-        return self.get("authrole")
-
 
 class CallDetails(_IncomingDetails):
     def __init__(self, details: dict | None = None):
         super().__init__(details)
+
+    @property
+    def session_id(self) -> int | None:
+        return self.get("caller")
+
+    @property
+    def authid(self) -> str | None:
+        return self.get("caller_authid")
+
+    @property
+    def authrole(self) -> str | None:
+        return self.get("caller_authrole")
 
 
 class PublicationDetails(_IncomingDetails):
