@@ -1,10 +1,11 @@
+import contextlib
 import time
 import socket
 import asyncio
 from dataclasses import dataclass
 import inspect
 import json
-from typing import get_type_hints, Type, Optional, Any
+from typing import get_type_hints, Type, Optional, Any, Callable, ContextManager, AsyncContextManager, Awaitable
 from urllib.parse import urlparse
 
 from aiohttp import web
@@ -27,6 +28,31 @@ MAX_WAIT = 300
 INITIAL_WAIT = 1
 
 
+class Depends:
+    def __init__(self, dependency: Callable | Awaitable):
+        self._is_async = False
+        self._is_async_gen = False
+
+        self.dependency = self._setup(dependency)
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
+
+    @property
+    def is_async_gen(self) -> bool:
+        return self._is_async_gen
+
+    def _setup(self, func: Callable | Awaitable):
+        if inspect.iscoroutinefunction(func):
+            self._is_async = True
+        elif inspect.isasyncgenfunction(func):
+            self._is_async_gen = True
+            return contextlib.asynccontextmanager(func)
+
+        return func
+
+
 @dataclass
 class ProcedureMetadata:
     request_model: Type[BaseModel] | None
@@ -42,6 +68,11 @@ class ProcedureMetadata:
     dynamic_model: bool
 
     allowed_roles: list[str]
+
+    dependencies: dict[str, Callable]
+    ctx_dependencies: dict[str, ContextManager]
+    async_dependencies: dict[str, Awaitable]
+    async_ctx_dependencies: dict[str, AsyncContextManager]
 
 
 def create_model_from_func(func):
@@ -79,6 +110,40 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
     request_kwargs = []
     no_args = False
     dynamic_model = False
+
+    dependencies = {}
+    ctx_dependencies = {}
+    async_dependencies = {}
+    async_ctx_dependencies = {}
+    for name, param in sig.parameters.items():
+        if isinstance(param.default, Depends):
+            sig = inspect.signature(param.default.dependency)
+
+            if len(sig.parameters) != 0:
+                raise RuntimeError("Dependency functions support no parameters")
+
+            dep: Depends = param.default
+
+            if dep.is_async:
+                async_dependencies[name] = param.default.dependency
+            elif dep.is_async_gen:
+                async_ctx_dependencies[name] = param.default.dependency
+            elif inspect.isgeneratorfunction(param.default.dependency):
+                ctx_dependencies[name] = contextlib.contextmanager(param.default.dependency)
+            elif inspect.isfunction(param.default.dependency) or inspect.ismethod(param.default.dependency):
+                dependencies[name] = param.default.dependency
+
+    for key in dependencies.keys():
+        del hints[key]
+
+    for key in ctx_dependencies.keys():
+        del hints[key]
+
+    for key in async_dependencies.keys():
+        del hints[key]
+
+    for key in async_ctx_dependencies.keys():
+        del hints[key]
 
     for type_ in hints.values():
         if issubclass(type_, BaseModel):
@@ -132,6 +197,10 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
         no_args=no_args,
         dynamic_model=dynamic_model,
         allowed_roles=allowed_roles,
+        dependencies=dependencies,
+        ctx_dependencies=ctx_dependencies,
+        async_dependencies=async_dependencies,
+        async_ctx_dependencies=async_ctx_dependencies,
     )
 
 

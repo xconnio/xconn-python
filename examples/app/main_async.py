@@ -1,5 +1,6 @@
 from xconn import App, Component, register, subscribe
 from xconn.types import Result, Event, Invocation
+from xconn._client.helpers import Depends
 
 from models import InData, OutData
 
@@ -19,7 +20,7 @@ async def included_event(data: InData) -> None:
 
 class Test(Component):
     @register("hello", response_model=OutData)
-    async def hello(self, inv: Invocation):
+    async def hello(self):
         return (
             "john",
             "wick",
@@ -64,3 +65,19 @@ async def dynamic(name: str, city: str, age: int, address: str = None) -> tuple:
 @app.register("io.xconn.not_allowed", allowed_roles=["test"])
 async def not_allowed() -> None:
     pass
+
+
+async def get_database() -> str:
+    return "HELLO"
+
+
+async def get_more():
+    try:
+        yield "MORE"
+    finally:
+        print("END")
+
+
+@app.register("io.xconn.depends")
+async def not_allowed(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
+    print(db, test)
