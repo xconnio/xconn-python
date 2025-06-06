@@ -1,8 +1,10 @@
+import contextlib
 import random
 import inspect
 from multiprocessing import Process
 import threading
 import time
+from typing import Any, ContextManager, Generator
 from urllib.parse import urlparse
 
 from xconn import App
@@ -85,6 +87,17 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
         docs_process.start()
 
 
+@contextlib.contextmanager
+def resolve_dependencies(dependencies: dict[str, ContextManager]) -> Generator[dict[Any, Any], Any, None]:
+    with contextlib.ExitStack() as stack:
+        result = {}
+
+        for name, dependency in dependencies.items():
+            result[name] = stack.enter_context(dependency())
+
+        yield result
+
+
 def register_sync(session: Session, uri: str, func: callable):
     if inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must not be a coroutine")
@@ -97,19 +110,53 @@ def register_sync(session: Session, uri: str, func: callable):
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             handle_model_validation(meta.request_model, **kwargs)
-            result = func(**kwargs)
+
+            resolved = {}
+
+            for key, value in meta.dependencies.items():
+                resolved[key] = value()
+
+            with resolve_dependencies(meta.ctx_dependencies) as deps:
+                resolved.update(deps)
+
+                result = func(**kwargs, **resolved)
+
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
-
             model = handle_model_validation(meta.request_model, **kwargs)
-            result = func(model)
+
+            resolved = {}
+
+            for key, value in meta.dependencies.items():
+                resolved[key] = value()
+
+            with resolve_dependencies(meta.ctx_dependencies) as deps:
+                resolved.update(deps)
+                result = func(model, **resolved)
+
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
-            result = func()
+            resolved = {}
+
+            for key, value in meta.dependencies.items():
+                resolved[key] = value()
+
+            with resolve_dependencies(meta.ctx_dependencies) as deps:
+                resolved.update(deps)
+                result = func(**resolved)
+
             return _handle_result(result, meta.response_model, meta.response_args)
         else:
-            result = func(invocation)
+            resolved = {}
+
+            for key, value in meta.dependencies.items():
+                resolved[key] = value()
+
+            with resolve_dependencies(meta.ctx_dependencies) as deps:
+                resolved.update(deps)
+                result = func(invocation, **resolved)
+
             return _handle_result(result, meta.response_model, meta.response_args)
 
     session.register(uri, _handle_invocation)

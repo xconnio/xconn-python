@@ -1,6 +1,8 @@
+import contextlib
 import random
 import asyncio
 import inspect
+from typing import AsyncContextManager, AsyncGenerator
 
 from xconn import App
 from xconn._client.helpers import (
@@ -77,6 +79,17 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
         await serve_schema_async(config.schema_host, config.schema_port, docs)
 
 
+@contextlib.asynccontextmanager
+async def resolve_dependencies(dependencies: dict[str, AsyncContextManager]) -> AsyncGenerator:
+    async with contextlib.AsyncExitStack() as stack:
+        result = {}
+
+        for name, dependency in dependencies.items():
+            result[name] = await stack.enter_async_context(dependency())
+
+        yield result
+
+
 async def register_async(session: AsyncSession, uri: str, func: callable):
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must be a coroutine")
@@ -98,7 +111,15 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
-            result = await func()
+            resolved = {}
+
+            for key, value in meta.async_dependencies.items():
+                resolved[key] = await value()
+
+            async with resolve_dependencies(meta.async_ctx_dependencies) as deps:
+                resolved.update(deps)
+                result = await func(**resolved)
+
             return _handle_result(result, meta.response_model, meta.response_args)
         else:
             result = await func(invocation)

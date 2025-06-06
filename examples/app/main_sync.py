@@ -1,5 +1,8 @@
+from typing import Any, Generator
+
 from xconn import App, Component, register, subscribe
 from xconn.types import Result, Event, Invocation
+from xconn._client.helpers import Depends
 
 from models import InData, OutData
 
@@ -59,3 +62,19 @@ def login(event: Event) -> None:
 @app.register("io.xconn.not_allowed", allowed_roles=["test"])
 def dynamic() -> None:
     pass
+
+
+def get_database() -> str:
+    return "HELLO"
+
+
+def get_more() -> Generator[str, Any, None]:
+    try:
+        yield "MORE"
+    finally:
+        print("END")
+
+
+@app.register("io.xconn.depends")
+def not_allowed(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
+    print(db, test)
