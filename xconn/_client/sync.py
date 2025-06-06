@@ -4,7 +4,7 @@ import inspect
 from multiprocessing import Process
 import threading
 import time
-from typing import Any, ContextManager, Generator
+from typing import Any, Generator
 from urllib.parse import urlparse
 
 from xconn import App
