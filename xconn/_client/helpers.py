@@ -408,11 +408,11 @@ def handle_model_validation(model, **kwargs):
 
 
 def ensure_caller_allowed(call_details: dict[str, Any], allowed_roles: list[str]):
+    if len(allowed_roles) == 0:
+        return
+
     role = call_details.get("caller_authrole", None)
     if role is None:
-        if len(allowed_roles) == 0:
-            return
-
         msg = (
             "Router did not send call details hence the authrole of the caller cannot be determined."
             f" The caller must have one of following roles '{allowed_roles}'"
