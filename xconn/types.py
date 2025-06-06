@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import inspect
 from asyncio import Future
 from collections import deque
 from dataclasses import dataclass
@@ -464,3 +466,28 @@ class CallDetails(_IncomingDetails):
 class PublicationDetails(_IncomingDetails):
     def __init__(self, details: dict | None = None):
         super().__init__(details)
+
+
+class Depends:
+    def __init__(self, dependency: Callable | Awaitable):
+        self._is_async = False
+        self._is_async_gen = False
+
+        self.dependency = self._setup(dependency)
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
+
+    @property
+    def is_async_gen(self) -> bool:
+        return self._is_async_gen
+
+    def _setup(self, func: Callable | Awaitable):
+        if inspect.iscoroutinefunction(func):
+            self._is_async = True
+        elif inspect.isasyncgenfunction(func):
+            self._is_async_gen = True
+            return contextlib.asynccontextmanager(func)
+
+        return func
