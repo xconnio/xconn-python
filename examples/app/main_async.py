@@ -1,6 +1,5 @@
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation
-from xconn._client.helpers import Depends
+from xconn.types import Result, Event, Invocation, Depends
 
 from models import InData, OutData
 

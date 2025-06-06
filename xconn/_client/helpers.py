@@ -21,36 +21,10 @@ from wampproto.auth import (
 from xconn import Router, Server
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
-from xconn.types import Event, Invocation, Result
-
+from xconn.types import Event, Invocation, Result, Depends
 
 MAX_WAIT = 300
 INITIAL_WAIT = 1
-
-
-class Depends:
-    def __init__(self, dependency: Callable | Awaitable):
-        self._is_async = False
-        self._is_async_gen = False
-
-        self.dependency = self._setup(dependency)
-
-    @property
-    def is_async(self) -> bool:
-        return self._is_async
-
-    @property
-    def is_async_gen(self) -> bool:
-        return self._is_async_gen
-
-    def _setup(self, func: Callable | Awaitable):
-        if inspect.iscoroutinefunction(func):
-            self._is_async = True
-        elif inspect.isasyncgenfunction(func):
-            self._is_async_gen = True
-            return contextlib.asynccontextmanager(func)
-
-        return func
 
 
 @dataclass
