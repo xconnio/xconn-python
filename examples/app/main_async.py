@@ -1,5 +1,5 @@
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation, Depends
+from xconn.types import Result, Event, Invocation, Depends, CallDetails
 
 from models import InData, OutData
 
@@ -80,3 +80,8 @@ async def not_allowed() -> None:
 @app.register("io.xconn.depends")
 async def depends(data: InData, db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
     print(data, db, test)
+
+
+@app.register("com.thing.system.ota.device.hello")
+def hello(details: CallDetails) -> str:
+    print(details)
