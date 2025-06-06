@@ -2,7 +2,7 @@ import contextlib
 import random
 import asyncio
 import inspect
-from typing import Any, AsyncContextManager, AsyncGenerator
+from typing import AsyncContextManager, AsyncGenerator
 
 from xconn import App
 from xconn._client.helpers import (

@@ -22,7 +22,6 @@ from xconn._client.helpers import (
     ensure_caller_allowed,
     INITIAL_WAIT,
     MAX_WAIT,
-    Depends,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client

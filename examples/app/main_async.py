@@ -79,5 +79,5 @@ async def get_more():
 
 
 @app.register("io.xconn.depends")
-async def not_allowed(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
+async def depends(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
     print(db, test)
