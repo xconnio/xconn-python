@@ -4,7 +4,7 @@ import inspect
 from multiprocessing import Process
 import threading
 import time
-from typing import Any, ContextManager, Generator
+from typing import Any, Generator
 from urllib.parse import urlparse
 
 from xconn import App
@@ -22,6 +22,7 @@ from xconn._client.helpers import (
     ensure_caller_allowed,
     INITIAL_WAIT,
     MAX_WAIT,
+    ProcedureMetadata,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -88,11 +89,14 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
 
 
 @contextlib.contextmanager
-def resolve_dependencies(dependencies: dict[str, ContextManager]) -> Generator[dict[Any, Any], Any, None]:
-    with contextlib.ExitStack() as stack:
-        result = {}
+def resolve_dependencies(meta: ProcedureMetadata) -> Generator[dict[Any, Any], Any, None]:
+    result = {}
 
-        for name, dependency in dependencies.items():
+    for key, value in meta.dependencies.items():
+        result[key] = value()
+
+    with contextlib.ExitStack() as stack:
+        for name, dependency in meta.ctx_dependencies.items():
             result[name] = stack.enter_context(dependency())
 
         yield result
@@ -111,51 +115,26 @@ def register_sync(session: Session, uri: str, func: callable):
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             handle_model_validation(meta.request_model, **kwargs)
 
-            resolved = {}
-
-            for key, value in meta.dependencies.items():
-                resolved[key] = value()
-
-            with resolve_dependencies(meta.ctx_dependencies) as deps:
-                resolved.update(deps)
-
-                result = func(**kwargs, **resolved)
+            with resolve_dependencies(meta) as deps:
+                result = func(**kwargs, **deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             model = handle_model_validation(meta.request_model, **kwargs)
 
-            resolved = {}
-
-            for key, value in meta.dependencies.items():
-                resolved[key] = value()
-
-            with resolve_dependencies(meta.ctx_dependencies) as deps:
-                resolved.update(deps)
-                result = func(model, **resolved)
+            with resolve_dependencies(meta) as deps:
+                result = func(model, **deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
-            resolved = {}
-
-            for key, value in meta.dependencies.items():
-                resolved[key] = value()
-
-            with resolve_dependencies(meta.ctx_dependencies) as deps:
-                resolved.update(deps)
-                result = func(**resolved)
+            with resolve_dependencies(meta) as deps:
+                result = func(**deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         else:
-            resolved = {}
-
-            for key, value in meta.dependencies.items():
-                resolved[key] = value()
-
-            with resolve_dependencies(meta.ctx_dependencies) as deps:
-                resolved.update(deps)
-                result = func(invocation, **resolved)
+            with resolve_dependencies(meta) as deps:
+                result = func(invocation, **deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
 

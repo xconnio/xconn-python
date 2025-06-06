@@ -7,6 +7,17 @@ from models import InData, OutData
 functional_component = Component()
 
 
+async def get_database() -> str:
+    return "HELLO"
+
+
+async def get_more():
+    try:
+        yield "MORE"
+    finally:
+        print("END")
+
+
 @functional_component.register("io.xconn.component.echo", response_model=OutData)
 async def included_echo(data: InData) -> tuple[str, str, int]:
     return data.first_name, data.last_name, data.age
@@ -66,17 +77,6 @@ async def not_allowed() -> None:
     pass
 
 
-async def get_database() -> str:
-    return "HELLO"
-
-
-async def get_more():
-    try:
-        yield "MORE"
-    finally:
-        print("END")
-
-
 @app.register("io.xconn.depends")
-async def depends(db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
-    print(db, test)
+async def depends(data: InData, db: str = Depends(get_database), test: str = Depends(get_more)) -> None:
+    print(data, db, test)

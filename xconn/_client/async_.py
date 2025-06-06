@@ -2,7 +2,7 @@ import contextlib
 import random
 import asyncio
 import inspect
-from typing import AsyncContextManager, AsyncGenerator
+from typing import AsyncGenerator
 
 from xconn import App
 from xconn._client.helpers import (
@@ -18,6 +18,7 @@ from xconn._client.helpers import (
     ensure_caller_allowed,
     INITIAL_WAIT,
     MAX_WAIT,
+    ProcedureMetadata,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -80,11 +81,14 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
 
 
 @contextlib.asynccontextmanager
-async def resolve_dependencies(dependencies: dict[str, AsyncContextManager]) -> AsyncGenerator:
-    async with contextlib.AsyncExitStack() as stack:
-        result = {}
+async def resolve_dependencies(meta: ProcedureMetadata) -> AsyncGenerator:
+    result = {}
 
-        for name, dependency in dependencies.items():
+    for key, value in meta.async_dependencies.items():
+        result[key] = await value()
+
+    async with contextlib.AsyncExitStack() as stack:
+        for name, dependency in meta.async_ctx_dependencies.items():
             result[name] = await stack.enter_async_context(dependency())
 
         yield result
@@ -102,27 +106,28 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             handle_model_validation(meta.request_model, **kwargs)
-            result = await func(**kwargs)
+
+            async with resolve_dependencies(meta) as deps:
+                result = await func(**kwargs, **deps)
+
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.request_model is not None:
             kwargs = _sanitize_incoming_data(invocation.args, invocation.kwargs, meta.request_args)
             model = handle_model_validation(meta.request_model, **kwargs)
-            result = await func(model)
+
+            async with resolve_dependencies(meta) as deps:
+                result = await func(model, **deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         elif meta.no_args:
-            resolved = {}
-
-            for key, value in meta.async_dependencies.items():
-                resolved[key] = await value()
-
-            async with resolve_dependencies(meta.async_ctx_dependencies) as deps:
-                resolved.update(deps)
-                result = await func(**resolved)
+            async with resolve_dependencies(meta) as deps:
+                result = await func(**deps)
 
             return _handle_result(result, meta.response_model, meta.response_args)
         else:
-            result = await func(invocation)
+            async with resolve_dependencies(meta) as deps:
+                result = await func(invocation, **deps)
+
             return _handle_result(result, meta.response_model, meta.response_args)
 
     await session.register(uri, _handle_invocation)
