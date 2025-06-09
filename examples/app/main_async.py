@@ -1,5 +1,5 @@
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation, Depends, CallDetails
+from xconn.types import Result, Event, Invocation, Depends, CallDetails, RegisterOptions, InvokeOptions
 
 from models import InData, OutData
 
@@ -82,6 +82,6 @@ async def depends(data: InData, db: str = Depends(get_database), test: str = Dep
     print(data, db, test)
 
 
-@app.register("com.thing.system.ota.device.hello")
-def hello(details: CallDetails) -> str:
-    print(details)
+@app.register("io.xconn.roundrobin", options=RegisterOptions(invoke=InvokeOptions.ROUNDROBIN))
+async def roundrobin_one():
+    print("roundrobin_one")

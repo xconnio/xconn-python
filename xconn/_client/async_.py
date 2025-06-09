@@ -134,7 +134,6 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
             return _handle_result(result, meta.response_model, meta.response_args)
 
-    print(uri)
     await session.register(uri, _handle_invocation, options=meta.register_options)
     print(f"Registered procedure {uri}")
 
