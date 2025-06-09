@@ -18,7 +18,7 @@ def register(
     register_requests: dict[int, types.RegisterRequest],
     procedure: str,
     invocation_handler: Callable | Callable[[types.Invocation], types.Result],
-    options: dict | None = None,
+    options: dict | types.RegisterOptions | None = None,
 ) -> types.RegisterResponse:
     register_msg = messages.Register(messages.RegisterFields(id_generator.next(), procedure, options=options))
     data = wamp_session.send_message(register_msg)
