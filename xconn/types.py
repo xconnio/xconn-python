@@ -503,6 +503,101 @@ class RegisterOptions(dict):
 
             self["concurrency"] = concurrency
 
+        for k, v in kwargs.items():
+            self[k] = v
+
+
+class CallOptions(dict):
+    def __init__(self, timeout: int = None, disclose_me: bool | None = None, **kwargs):
+        super().__init__()
+        if timeout is not None:
+            if not isinstance(timeout, int):
+                raise ValueError("expected int for 'timeout' WAMP option")
+
+            self["timeout"] = timeout
+
+        if disclose_me is not None:
+            if not isinstance(disclose_me, bool):
+                raise ValueError("expected bool for 'disclose_me' WAMP option")
+
+            self["disclose_me"] = disclose_me
+
+        for k, v in kwargs.items():
+            self[k] = v
+
+
+class PublishOptions(dict):
+    def __init__(
+        self,
+        acknowledge: bool | None = None,
+        exclude_me: bool | None = None,
+        disclose_me: bool | None = None,
+        exclude: list[int] | None = None,
+        eligible: list[int] | None = None,
+        exclude_authid: list[int] | None = None,
+        eligible_authid: list[int] | None = None,
+        exclude_authrole: list[int] | None = None,
+        eligible_authrole: list[int] | None = None,
+        **kwargs,
+    ):
+        super().__init__()
+        if acknowledge is not None:
+            if not isinstance(acknowledge, bool):
+                raise ValueError("expected bool for 'acknowledge' WAMP option")
+
+            self["acknowledge"] = acknowledge
+
+        if exclude_me is not None:
+            if not isinstance(exclude_me, bool):
+                raise ValueError("expected bool for 'exclude_me' WAMP option")
+
+            self["exclude_me"] = exclude_me
+
+        if disclose_me is not None:
+            if not isinstance(disclose_me, bool):
+                raise ValueError("expected bool for 'disclose_me' WAMP option")
+
+            self["disclose_me"] = disclose_me
+
+        if exclude is not None:
+            if not isinstance(exclude, list):
+                raise ValueError("expected list for 'exclude' WAMP option")
+
+            self["exclude"] = exclude
+
+        if eligible is not None:
+            if not isinstance(eligible, list):
+                raise ValueError("expected list for 'eligible' WAMP option")
+
+            self["eligible"] = eligible
+
+        if exclude_authid is not None:
+            if not isinstance(exclude_authid, list):
+                raise ValueError("expected list for 'exclude_authid' WAMP option")
+
+            self["exclude_authid"] = exclude_authid
+
+        if eligible_authid is not None:
+            if not isinstance(eligible_authid, list):
+                raise ValueError("expected list for 'eligible_authid' WAMP option")
+
+            self["eligible_authid"] = eligible_authid
+
+        if exclude_authrole is not None:
+            if not isinstance(exclude_authrole, list):
+                raise ValueError("expected list for 'exclude_authrole' WAMP option")
+
+            self["exclude_authrole"] = exclude_authrole
+
+        if eligible_authrole is not None:
+            if not isinstance(eligible_authrole, list):
+                raise ValueError("expected list for 'eligible_authrole' WAMP option")
+
+            self["eligible_authrole"] = eligible_authrole
+
+        for k, v in kwargs.items():
+            self[k] = v
+
 
 class Depends:
     def __init__(self, dependency: Callable | Awaitable):
