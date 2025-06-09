@@ -503,6 +503,28 @@ class RegisterOptions(dict):
 
             self["concurrency"] = concurrency
 
+        for k, v in kwargs.items():
+            self[k] = v
+
+
+class CallOptions(dict):
+    def __init__(self, timeout: int = None, disclose_me: bool | None = None, **kwargs):
+        super().__init__()
+        if timeout is not None:
+            if not isinstance(timeout, int):
+                raise ValueError("expected int for 'timeout' WAMP option")
+
+            self["timeout"] = timeout
+
+        if disclose_me is not None:
+            if not isinstance(disclose_me, bool):
+                raise ValueError("expected bool for 'disclose_me' WAMP option")
+
+            self["disclose_me"] = disclose_me
+
+        for k, v in kwargs.items():
+            self[k] = v
+
 
 class Depends:
     def __init__(self, dependency: Callable | Awaitable):
