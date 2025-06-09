@@ -21,7 +21,7 @@ from wampproto.auth import (
 from xconn import Router, Server
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
-from xconn.types import Event, Invocation, Result, Depends, CallDetails
+from xconn.types import Event, Invocation, Result, Depends, CallDetails, RegisterOptions
 
 MAX_WAIT = 300
 INITIAL_WAIT = 1
@@ -50,6 +50,8 @@ class ProcedureMetadata:
 
     call_details_field: str | None
     positional_field_name: str | None
+
+    register_options: dict[str, Any] | RegisterOptions | None
 
 
 def create_model_from_func(func):
@@ -188,6 +190,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
                 response_kwargs.append(key)
 
     allowed_roles = getattr(func, "__xconn_allowed_roles__", [])
+    register_options = getattr(func, "__xconn_register_options__", None)
 
     return ProcedureMetadata(
         request_model=request_model,
@@ -205,6 +208,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
         async_ctx_dependencies=async_ctx_dependencies,
         call_details_field=call_details_field,
         positional_field_name=positional_field_name,
+        register_options=register_options,
     )
 
 

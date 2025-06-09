@@ -6,6 +6,7 @@ import inspect
 from asyncio import Future
 from collections import deque
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable, Awaitable
 
 from aiohttp import web
@@ -466,6 +467,41 @@ class CallDetails(_IncomingDetails):
 class PublicationDetails(_IncomingDetails):
     def __init__(self, details: dict | None = None):
         super().__init__(details)
+
+
+class InvokeOptions(Enum):
+    SINGLE = "single"
+    ROUNDROBIN = "roundrobin"
+    RANDOM = "random"
+    FIRST = "first"
+    LAST = "last"
+
+
+class MatchOptions(Enum):
+    EXACT = "exact"
+    PREFIX = "prefix"
+    WILDCARD = "wildcard"
+
+
+class RegisterOptions(dict):
+    def __init__(self, invoke: InvokeOptions = None, match: MatchOptions = None, concurrency: int = None, **kwargs):
+        super().__init__()
+        if invoke is not None:
+            if not isinstance(invoke, InvokeOptions):
+                raise ValueError("expected InvokeOptions for 'invoke' WAMP option")
+
+            self["invoke"] = invoke.value
+        if match is not None:
+            if not isinstance(match, MatchOptions):
+                raise ValueError("expected MatchOptions for 'match' WAMP option")
+
+            self["match"] = match.value
+
+        if concurrency is not None:
+            if not isinstance(concurrency, int):
+                raise ValueError("expected int for 'concurrency' WAMP option")
+
+            self["concurrency"] = concurrency
 
 
 class Depends:

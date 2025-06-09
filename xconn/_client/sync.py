@@ -142,7 +142,7 @@ def register_sync(session: Session, uri: str, func: callable):
 
             return _handle_result(result, meta.response_model, meta.response_args)
 
-    session.register(uri, _handle_invocation)
+    session.register(uri, _handle_invocation, options=meta.register_options)
     print(f"Registered procedure {uri}")
 
 
