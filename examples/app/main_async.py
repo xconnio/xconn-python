@@ -1,5 +1,5 @@
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation, Depends, CallDetails, RegisterOptions, InvokeOptions
+from xconn.types import Result, Event, Invocation, Depends, RegisterOptions, InvokeOptions
 
 from models import InData, OutData
 
