@@ -3,7 +3,7 @@ from asyncio import gather
 from wampproto import dealer, broker, messages
 from wampproto.types import SessionDetails
 
-from xconn import types
+from xconn import types, uris
 
 
 class Realm:
@@ -70,4 +70,6 @@ class Realm:
                 except KeyError:
                     return
 
+                goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_GOODBYE_AND_OUT))
+                await client.send_message(goodbye)
                 await client.close()
