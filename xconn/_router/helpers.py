@@ -20,12 +20,6 @@ def validate_realms(realms: list[types.Realm]) -> None:
             raise ValidationError(f"invalid realm name: '{realm.name}'")
 
 
-def validate_transport(transport: types.Transport) -> None:
-    if transport.type != "websocket":
-        raise TypeError("type is required and must be 'websocket'")
-    pass
-
-
 def validate_non_empty_no_space_string(field: str, field_name: str) -> None:
     if not field.strip():
         raise ValidationError(f"{field_name} is required")
@@ -73,9 +67,6 @@ def validate_authenticators(authenticators: Authenticators) -> None:
 def validate_config(data: dict[str, Any]) -> RouterConfig:
     config = RouterConfig(**data)
     validate_realms(config.realms)
-
-    for transport in config.transports:
-        validate_transport(transport)
 
     validate_authenticators(config.authenticators)
 
