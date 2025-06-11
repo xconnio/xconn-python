@@ -41,6 +41,7 @@ class Server:
         return ws
 
     async def start(self, host: str, port: int, start_loop: bool = False):
+        print(f"starting server on {host}:{port}")
         app = web.Application()
         app.router.add_get("/ws", self._websocket_handler)
 
