@@ -1,3 +1,6 @@
+import os
+import socket
+
 import aiohttp
 from aiohttp import web
 from wampproto.auth import IServerAuthenticator
@@ -49,3 +52,25 @@ class Server:
 
             site = aiohttp.web.TCPSite(runner, host=host, port=port)
             await site.start()
+
+    async def start_unix_server(self, socket_path: str) -> None:
+        try:
+            os.remove(socket_path)
+        except FileNotFoundError:
+            pass
+
+        print(f"Listening on unix://{socket_path}")
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(socket_path)
+        sock.listen(128)
+        sock.setblocking(False)
+
+        app = web.Application()
+        app.router.add_get("/", self._websocket_handler)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+
+        site = web.SockSite(runner, sock)
+        await site.start()
