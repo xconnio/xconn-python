@@ -1,7 +1,7 @@
 from xconn import App, Component, register, subscribe
 from xconn.types import Result, Event, Invocation, Depends, RegisterOptions, InvokeOptions
 
-from models import InData, OutData
+from models import InData, OutData, UserProfile, Address, ContactInfo
 
 
 functional_component = Component()
@@ -85,3 +85,8 @@ async def depends(data: InData, db: str = Depends(get_database), test: str = Dep
 @app.register("io.xconn.roundrobin", options=RegisterOptions(invoke=InvokeOptions.ROUNDROBIN))
 async def roundrobin_one():
     print("roundrobin_one")
+
+
+@app.register("io.xconn.user.profile.get", response_model=UserProfile)
+async def profile(data: UserProfile) -> tuple[str, int, Address, ContactInfo]:
+    return data.name, data.age, data.address, data.contact
