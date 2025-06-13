@@ -79,7 +79,7 @@ class AsyncSession:
         self.wait_task = loop.create_task(self.wait())
 
     async def wait(self):
-        while await self.base_session.is_connected():
+        while await self.base_session.transport.is_connected():
             try:
                 data = await self.base_session.receive()
             except Exception as e:
@@ -267,12 +267,12 @@ class AsyncSession:
         except asyncio.CancelledError:
             pass
 
-        if self.base_session.is_connected():
+        if self.base_session.transport.is_connected():
             await self.base_session.close()
 
     async def ping(self) -> None:
         payload = os.urandom(16)
-        pong_waiter = await self.base_session.ws.ping(payload)
+        pong_waiter = await self.base_session.transport.ping(payload)
         await asyncio.wait_for(pong_waiter, timeout=10)
 
     def on_disconnect(self, callback: Callable[[], Awaitable[None]]) -> None:

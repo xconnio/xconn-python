@@ -75,7 +75,7 @@ class Session:
         thread.start()
 
     def wait(self):
-        while self.base_session.is_connected():
+        while self.base_session.transport.is_connected():
             try:
                 data = self.base_session.receive()
             except Exception:
@@ -248,7 +248,7 @@ class Session:
 
     def ping(self) -> None:
         payload = os.urandom(16)
-        pong_event = self.base_session.ws.ping(payload)
+        pong_event = self.base_session.transport.ping(payload)
         if not pong_event.wait(timeout=10):
             raise TimeoutError("ping timed out")
 

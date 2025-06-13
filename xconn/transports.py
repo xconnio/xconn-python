@@ -69,6 +69,9 @@ class RawSocketTransport(ITransport):
         except (BrokenPipeError, ConnectionResetError, OSError):
             return False
 
+    def ping(self, data: str | bytes | None = None) -> None:
+        raise NotImplementedError()
+
 
 class AsyncRawSocketTransport(IAsyncTransport):
     def __init__(self, reader: StreamReader, writer: StreamWriter):
@@ -121,6 +124,9 @@ class AsyncRawSocketTransport(IAsyncTransport):
         except (BrokenPipeError, ConnectionResetError, OSError):
             return False
 
+    def ping(self, data: str | bytes | None = None) -> None:
+        raise NotImplementedError()
+
 
 class WebSocketTransport(ITransport):
     def __init__(self, websocket: Connection):
@@ -151,6 +157,9 @@ class WebSocketTransport(ITransport):
 
     def is_connected(self) -> bool:
         return self._websocket.state == State.OPEN
+
+    def ping(self, data: str | bytes | None = None) -> None:
+        return self._websocket.ping(data)
 
 
 class AsyncWebSocketTransport(IAsyncTransport):
@@ -184,3 +193,6 @@ class AsyncWebSocketTransport(IAsyncTransport):
 
     async def is_connected(self) -> bool:
         return self._websocket.state == State.OPEN
+
+    async def ping(self, data: str | bytes | None = None) -> None:
+        await self._websocket.ping(data)
