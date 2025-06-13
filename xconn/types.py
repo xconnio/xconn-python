@@ -108,6 +108,9 @@ class ITransport:
     def is_connected(self) -> bool:
         raise NotImplementedError()
 
+    def ping(self, data: str | bytes | None = None) -> None:
+        raise NotImplementedError()
+
 
 class IAsyncTransport:
     async def read(self) -> str | bytes:
@@ -120,6 +123,9 @@ class IAsyncTransport:
         raise NotImplementedError()
 
     async def is_connected(self) -> bool:
+        raise NotImplementedError()
+
+    async def ping(self, data: str | bytes | None = None) -> None:
         raise NotImplementedError()
 
 
@@ -161,6 +167,10 @@ class Peer(IPeer):
 
 class IBaseSession:
     @property
+    def transport(self) -> ITransport:
+        raise NotImplementedError()
+
+    @property
     def id(self) -> int:
         raise NotImplementedError()
 
@@ -191,9 +201,6 @@ class IBaseSession:
     def close(self):
         raise NotImplementedError()
 
-    def is_connected(self) -> bool:
-        raise NotImplementedError()
-
 
 class BaseSession(IBaseSession):
     def __init__(
@@ -203,6 +210,10 @@ class BaseSession(IBaseSession):
         self._transport = transport
         self.session_details = session_details
         self.serializer = serializer
+
+    @property
+    def transport(self) -> ITransport:
+        return self._transport
 
     @property
     def id(self) -> int:
@@ -235,11 +246,12 @@ class BaseSession(IBaseSession):
     def close(self):
         self._transport.close()
 
-    def is_connected(self) -> bool:
-        return self._transport.is_connected()
-
 
 class IAsyncBaseSession:
+    @property
+    def transport(self) -> IAsyncTransport:
+        raise NotImplementedError()
+
     @property
     def id(self) -> int:
         raise NotImplementedError()
@@ -275,9 +287,6 @@ class IAsyncBaseSession:
     async def close(self):
         raise NotImplementedError()
 
-    async def is_connected(self) -> bool:
-        raise NotImplementedError()
-
 
 class AsyncBaseSession(IAsyncBaseSession):
     def __init__(
@@ -287,6 +296,10 @@ class AsyncBaseSession(IAsyncBaseSession):
         self._transport = transport
         self.session_details = session_details
         self._serializer = serializer
+
+    @property
+    def transport(self) -> IAsyncTransport:
+        return self._transport
 
     @property
     def id(self) -> int:
@@ -322,9 +335,6 @@ class AsyncBaseSession(IAsyncBaseSession):
 
     async def close(self):
         await self._transport.close()
-
-    async def is_connected(self) -> bool:
-        return await self._transport.is_connected()
 
 
 class AIOHttpBaseSession(IAsyncBaseSession):
