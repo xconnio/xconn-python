@@ -97,6 +97,34 @@ class WebsocketConfig:
     close_timeout: float | None = 10
 
 
+class ITransport:
+    def read(self) -> str | bytes:
+        raise NotImplementedError()
+
+    def write(self, data: str | bytes):
+        raise NotImplementedError()
+
+    def close(self):
+        raise NotImplementedError()
+
+    def is_connected(self) -> bool:
+        raise NotImplementedError()
+
+
+class IAsyncTransport:
+    async def read(self) -> str | bytes:
+        raise NotImplementedError()
+
+    async def write(self, data: str | bytes):
+        raise NotImplementedError()
+
+    async def close(self):
+        raise NotImplementedError()
+
+    async def is_connected(self) -> bool:
+        raise NotImplementedError()
+
+
 class IBasePeer:
     def read(self) -> str | bytes:
         raise NotImplementedError()
