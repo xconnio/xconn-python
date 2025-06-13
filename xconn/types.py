@@ -10,9 +10,7 @@ from enum import Enum
 from typing import Callable, Awaitable
 
 from aiohttp import web
-from websockets.sync.connection import Connection
 from wampproto import messages, joiner, serializers
-from websockets.asyncio.client import ClientConnection
 
 
 @dataclass
@@ -193,11 +191,16 @@ class IBaseSession:
     def close(self):
         raise NotImplementedError()
 
+    def is_connected(self) -> bool:
+        raise NotImplementedError()
+
 
 class BaseSession(IBaseSession):
-    def __init__(self, ws: Connection, session_details: joiner.SessionDetails, serializer: serializers.Serializer):
+    def __init__(
+        self, transport: ITransport, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+    ):
         super().__init__()
-        self.ws = ws
+        self._transport = transport
         self.session_details = session_details
         self.serializer = serializer
 
@@ -218,19 +221,22 @@ class BaseSession(IBaseSession):
         return self.session_details.authrole
 
     def send(self, data: bytes):
-        self.ws.send(data)
+        self._transport.write(data)
 
     def receive(self) -> bytes:
-        return self.ws.recv()
+        return self._transport.read()
 
     def send_message(self, msg: messages.Message):
-        self.ws.send(self.serializer.serialize(msg))
+        self.send(self.serializer.serialize(msg))
 
     def receive_message(self) -> messages.Message:
         return self.serializer.deserialize(self.receive())
 
     def close(self):
-        self.ws.close()
+        self._transport.close()
+
+    def is_connected(self) -> bool:
+        return self._transport.is_connected()
 
 
 class IAsyncBaseSession:
@@ -269,13 +275,16 @@ class IAsyncBaseSession:
     async def close(self):
         raise NotImplementedError()
 
+    async def is_connected(self) -> bool:
+        raise NotImplementedError()
+
 
 class AsyncBaseSession(IAsyncBaseSession):
     def __init__(
-        self, ws: ClientConnection, session_details: joiner.SessionDetails, serializer: serializers.Serializer
+        self, transport: IAsyncTransport, session_details: joiner.SessionDetails, serializer: serializers.Serializer
     ):
         super().__init__()
-        self.ws = ws
+        self._transport = transport
         self.session_details = session_details
         self._serializer = serializer
 
@@ -300,19 +309,22 @@ class AsyncBaseSession(IAsyncBaseSession):
         return self._serializer
 
     async def send(self, data: bytes):
-        return await self.ws.send(data)
+        return await self._transport.write(data)
 
     async def receive(self) -> bytes:
-        return await self.ws.recv()
+        return await self._transport.read()
 
     async def send_message(self, msg: messages.Message):
-        await self.ws.send(self.serializer.serialize(msg))
+        await self.send(self.serializer.serialize(msg))
 
     async def receive_message(self) -> messages.Message:
         return self.serializer.deserialize(await self.receive())
 
     async def close(self):
-        await self.ws.close()
+        await self._transport.close()
+
+    async def is_connected(self) -> bool:
+        return await self._transport.is_connected()
 
 
 class AIOHttpBaseSession(IAsyncBaseSession):

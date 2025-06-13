@@ -1,6 +1,7 @@
 import asyncio
 import socket
 from asyncio import StreamReader, StreamWriter
+from typing import Sequence
 
 from wampproto.transports.rawsocket import (
     Handshake,
@@ -9,8 +10,13 @@ from wampproto.transports.rawsocket import (
     SERIALIZER_TYPE_CBOR,
     MSG_TYPE_WAMP,
 )
+from websockets import State, Subprotocol
+from websockets.sync.client import connect
+from websockets.sync.connection import Connection
+from websockets.asyncio.client import connect as async_connect
+from websockets.asyncio.client import ClientConnection
 
-from xconn.types import IAsyncTransport, ITransport
+from xconn.types import IAsyncTransport, ITransport, WebsocketConfig
 
 # Applies to handshake and message itself.
 RAW_SOCKET_HEADER_LENGTH = 4
@@ -114,3 +120,67 @@ class AsyncRawSocketTransport(IAsyncTransport):
             return True
         except (BrokenPipeError, ConnectionResetError, OSError):
             return False
+
+
+class WebSocketTransport(ITransport):
+    def __init__(self, websocket: Connection):
+        super().__init__()
+        self._websocket = websocket
+
+    @staticmethod
+    def connect(uri: str, subprotocols: Sequence[Subprotocol], config: WebsocketConfig) -> "WebSocketTransport":
+        ws = connect(
+            uri,
+            subprotocols=subprotocols,
+            open_timeout=config.open_timeout,
+            ping_interval=config.ping_interval,
+            ping_timeout=config.ping_timeout,
+            close_timeout=config.close_timeout,
+        )
+
+        return WebSocketTransport(ws)
+
+    def read(self) -> str | bytes:
+        return self._websocket.recv()
+
+    def write(self, data: str | bytes):
+        self._websocket.send(data)
+
+    def close(self):
+        self._websocket.close()
+
+    def is_connected(self) -> bool:
+        return self._websocket.state == State.OPEN
+
+
+class AsyncWebSocketTransport(IAsyncTransport):
+    def __init__(self, websocket: ClientConnection):
+        super().__init__()
+        self._websocket = websocket
+
+    @staticmethod
+    async def connect(
+        uri: str, subprotocols: Sequence[Subprotocol], config: WebsocketConfig
+    ) -> "AsyncWebSocketTransport":
+        ws = await async_connect(
+            uri,
+            subprotocols=subprotocols,
+            open_timeout=config.open_timeout,
+            ping_interval=config.ping_interval,
+            ping_timeout=config.ping_timeout,
+            close_timeout=config.close_timeout,
+        )
+
+        return AsyncWebSocketTransport(ws)
+
+    async def read(self) -> str | bytes:
+        return await self._websocket.recv()
+
+    async def write(self, data: str | bytes):
+        await self._websocket.send(data)
+
+    async def close(self):
+        await self._websocket.close()
+
+    async def is_connected(self) -> bool:
+        return self._websocket.state == State.OPEN

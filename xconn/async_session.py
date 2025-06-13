@@ -4,7 +4,6 @@ import inspect
 from asyncio import Future, get_event_loop
 from typing import Callable, Union, Awaitable, Any
 
-from websockets.protocol import State
 from wampproto import messages, idgen, session
 
 from xconn import types, uris as xconn_uris, exception
@@ -80,7 +79,7 @@ class AsyncSession:
         self.wait_task = loop.create_task(self.wait())
 
     async def wait(self):
-        while self.base_session.ws.state == State.OPEN:
+        while await self.base_session.is_connected():
             try:
                 data = await self.base_session.receive()
             except Exception as e:
@@ -268,7 +267,7 @@ class AsyncSession:
         except asyncio.CancelledError:
             pass
 
-        if self.base_session.ws.state != State.CLOSED:
+        if self.base_session.is_connected():
             await self.base_session.close()
 
     async def ping(self) -> None:
