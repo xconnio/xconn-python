@@ -14,7 +14,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 dependencies = [
   "websockets",
-  "wampproto@git+https://github.com/xconnio/wampproto-python@4bde000bef276c274ecbc0e437b90247f8aa53cb",
+  "wampproto@git+https://github.com/xconnio/wampproto-python@2129ff4905aa74adbcec6f58266df050a7ca3602",
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
@@ -23,7 +23,6 @@ dependencies = [
 requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 4 - Beta",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
