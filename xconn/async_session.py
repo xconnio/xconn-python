@@ -267,7 +267,7 @@ class AsyncSession:
         except asyncio.CancelledError:
             pass
 
-        if self.base_session.transport.is_connected():
+        if await self.base_session.transport.is_connected():
             await self.base_session.close()
 
     async def ping(self) -> None:

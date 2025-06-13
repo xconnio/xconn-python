@@ -1,8 +1,9 @@
 from inspect import signature
 
-from wampproto import serializers
 from pydantic import validate_call
+from wampproto import serializers
 from wampproto.messages import Error
+from wampproto.transports.rawsocket import SERIALIZER_TYPE_JSON, SERIALIZER_TYPE_MSGPACK, SERIALIZER_TYPE_CBOR
 
 from xconn.exception import ApplicationError
 
@@ -18,6 +19,17 @@ def get_ws_subprotocol(serializer: serializers.Serializer):
         return CBOR_SUBPROTOCOL
     elif isinstance(serializer, serializers.MsgPackSerializer):
         return MSGPACK_SUBPROTOCOL
+    else:
+        raise ValueError("invalid serializer")
+
+
+def get_rs_protocol(serializer: serializers.Serializer):
+    if isinstance(serializer, serializers.JSONSerializer):
+        return SERIALIZER_TYPE_JSON
+    elif isinstance(serializer, serializers.CBORSerializer):
+        return SERIALIZER_TYPE_CBOR
+    elif isinstance(serializer, serializers.MsgPackSerializer):
+        return SERIALIZER_TYPE_MSGPACK
     else:
         raise ValueError("invalid serializer")
 

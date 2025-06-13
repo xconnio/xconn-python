@@ -71,7 +71,7 @@ class Session:
 
         self._disconnect_callback: list[Callable[[], None] | None] = []
 
-        thread = Thread(target=self.wait)
+        thread = Thread(target=self.wait, daemon=True)
         thread.start()
 
     def wait(self):
