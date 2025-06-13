@@ -1,4 +1,5 @@
 from typing import Callable, Awaitable
+from urllib.parse import urlparse
 
 from wampproto import auth, serializers
 from wampproto.auth import AnonymousAuthenticator
@@ -6,7 +7,7 @@ from wampproto.auth import AnonymousAuthenticator
 from xconn import types
 from xconn.session import Session
 from xconn.async_session import AsyncSession
-from xconn.joiner import WebsocketsJoiner, AsyncWebsocketsJoiner
+from xconn.joiner import WebsocketsJoiner, AsyncWebsocketsJoiner, RawSocketJoiner, AsyncRawSocketJoiner
 
 
 class Client:
@@ -22,13 +23,27 @@ class Client:
 
     def connect(
         self,
-        url: str,
+        uri: str,
         realm: str,
         connect_callback: Callable[[], None] | None = None,
         disconnect_callback: Callable[[], None] | None = None,
     ) -> Session:
-        j = WebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
-        details = j.join(url, realm)
+        parsed = urlparse(uri)
+        if parsed.scheme == "ws" or parsed.scheme == "wss" or parsed.scheme == "unix+ws":
+            j = WebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
+        elif (
+            parsed.scheme == "rs"
+            or parsed.scheme == "rss"
+            or parsed.scheme == "tcp"
+            or parsed.scheme == "tcps"
+            or parsed.scheme == "unix"
+            or parsed.scheme == "unix+rs"
+        ):
+            j = RawSocketJoiner(self._authenticator, self._serializer)
+        else:
+            raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
+
+        details = j.join(uri, realm)
         session = Session(details)
 
         session.on_disconnect(disconnect_callback)
@@ -52,13 +67,27 @@ class AsyncClient:
 
     async def connect(
         self,
-        url: str,
+        uri: str,
         realm: str,
         connect_callback: Callable[[], Awaitable[None]] | None = None,
         disconnect_callback: Callable[[], Awaitable[None]] | None = None,
     ) -> AsyncSession:
-        j = AsyncWebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
-        details = await j.join(url, realm)
+        parsed = urlparse(uri)
+        if parsed.scheme == "ws" or parsed.scheme == "wss":
+            j = AsyncWebsocketsJoiner(self._authenticator, self._serializer, self._ws_config)
+        elif (
+            parsed.scheme == "rs"
+            or parsed.scheme == "rss"
+            or parsed.scheme == "tcp"
+            or parsed.scheme == "tcps"
+            or parsed.scheme == "unix"
+            or parsed.scheme == "unix+rs"
+        ):
+            j = AsyncRawSocketJoiner(self._authenticator, self._serializer)
+        else:
+            raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
+
+        details = await j.join(uri, realm)
         session = AsyncSession(details)
 
         session.on_disconnect(disconnect_callback)

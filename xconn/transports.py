@@ -2,6 +2,7 @@ import asyncio
 import socket
 from asyncio import StreamReader, StreamWriter
 from typing import Sequence
+from urllib.parse import urlparse
 
 from wampproto.transports.rawsocket import (
     Handshake,
@@ -29,9 +30,17 @@ class RawSocketTransport(ITransport):
 
     @staticmethod
     def connect(
-        host: str, port: int, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
+        uri: str, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
     ) -> "RawSocketTransport":
-        sock = socket.create_connection((host, port))
+        parsed = urlparse(uri)
+
+        if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
+            sock = socket.create_connection((parsed.hostname, parsed.port))
+        elif parsed.scheme == "unix+ws":
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(parsed.path)
+        else:
+            raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
 
         hs_request = Handshake(protocol, max_msg_size)
 
@@ -57,7 +66,11 @@ class RawSocketTransport(ITransport):
         msg_header = MessageHeader(MSG_TYPE_WAMP, len(data))
 
         self._sock.sendall(msg_header.to_bytes())
-        self._sock.sendall(data)
+
+        if isinstance(data, str):
+            self._sock.sendall(data.encode())
+        else:
+            self._sock.sendall(data)
 
     def close(self):
         self._sock.close()
@@ -81,9 +94,16 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
     @staticmethod
     async def connect(
-        host: str, port: int, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
+        uri: str, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
     ) -> "AsyncRawSocketTransport":
-        reader, writer = await asyncio.open_connection(host, port)
+        parsed = urlparse(uri)
+
+        if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
+            reader, writer = await asyncio.open_connection(parsed.hostname, parsed.port)
+        elif parsed.scheme == "unix+ws":
+            reader, writer = await asyncio.open_unix_connection(parsed.path)
+        else:
+            raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
 
         hs_request = Handshake(protocol, max_msg_size)
 
@@ -110,7 +130,12 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
         self._writer.write(msg_header.to_bytes())
         await self._writer.drain()
-        self._writer.write(data)
+
+        if isinstance(data, str):
+            self._writer.write(data.encode())
+        else:
+            self._writer.write(data)
+
         await self._writer.drain()
 
     async def close(self):
