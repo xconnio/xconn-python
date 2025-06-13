@@ -5,7 +5,19 @@ import asyncio
 from dataclasses import dataclass
 import inspect
 import json
-from typing import get_type_hints, Type, Optional, Any, Callable, ContextManager, AsyncContextManager, Awaitable
+from typing import (
+    get_type_hints,
+    Type,
+    Optional,
+    Any,
+    Callable,
+    ContextManager,
+    AsyncContextManager,
+    Awaitable,
+    get_origin,
+    Union,
+    get_args,
+)
 from urllib.parse import urlparse
 
 from aiohttp import web
@@ -61,7 +73,7 @@ def create_model_from_func(func):
 
     for param_name, param in signature.parameters.items():
         annotated_type = type_hints.get(param_name)
-        if issubclass(annotated_type, CallDetails) or issubclass(annotated_type, Depends):
+        if is_subclass_of_any(annotated_type, CallDetails) or is_subclass_of_any(annotated_type, Depends):
             continue
 
         # Handle default values
@@ -75,6 +87,14 @@ def create_model_from_func(func):
 
 def is_primitive(obj) -> bool:
     return isinstance(obj, (str, int, float, bool, bytes, type(None)))
+
+
+def is_subclass_of_any(type_, base_class: Any) -> bool:
+    origin = get_origin(type_)
+    if origin is Union:
+        return any(isinstance(arg, type) and issubclass(arg, base_class) for arg in get_args(type_))
+
+    return isinstance(type_, type) and issubclass(type_, base_class)
 
 
 def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
@@ -129,7 +149,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
     # check if CallDetails are in the function
     call_details_field = None
     for name, type_ in hints.items():
-        if issubclass(type_, CallDetails):
+        if is_subclass_of_any(type_, CallDetails):
             if call_details_field is not None:
                 raise RuntimeError(f"Duplicate call details in function '{func.__name__}'")
 
@@ -150,7 +170,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
             positional_field_name = name
             break
 
-        if issubclass(type_, Invocation):
+        if is_subclass_of_any(type_, Invocation):
             if has_invocation_in_sig:
                 raise RuntimeError(f"Cannot use other types than 'Invocation' as arguments in procedure '{uri}'")
 
