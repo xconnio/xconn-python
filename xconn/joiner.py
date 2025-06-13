@@ -1,9 +1,8 @@
-from websockets.sync.client import connect
-from websockets.asyncio.client import connect as async_connect
 from wampproto import joiner, serializers, auth
 from wampproto.joiner import Joiner
 
 from xconn import types, helpers
+from xconn.transports import WebSocketTransport, AsyncWebSocketTransport
 
 
 class WebsocketsJoiner:
@@ -18,25 +17,22 @@ class WebsocketsJoiner:
         self._ws_config = ws_config
 
     def join(self, uri: str, realm: str) -> types.BaseSession:
-        ws = connect(
+        transport = WebSocketTransport.connect(
             uri,
             subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
-            open_timeout=self._ws_config.open_timeout,
-            ping_interval=self._ws_config.ping_interval,
-            ping_timeout=self._ws_config.ping_timeout,
-            close_timeout=self._ws_config.close_timeout,
+            config=self._ws_config,
         )
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
-        ws.send(j.send_hello())
+        transport.write(j.send_hello())
 
         while True:
-            data = ws.recv()
+            data = transport.read()
             to_send = j.receive(data)
             if to_send is None:
-                return types.BaseSession(ws, j.get_session_details(), self._serializer)
+                return types.BaseSession(transport, j.get_session_details(), self._serializer)
 
-            ws.send(to_send)
+            transport.write(to_send)
 
 
 class AsyncWebsocketsJoiner:
@@ -51,22 +47,19 @@ class AsyncWebsocketsJoiner:
         self._serializer = serializer
 
     async def join(self, uri: str, realm: str) -> types.AsyncBaseSession:
-        ws = await async_connect(
+        transport = await AsyncWebSocketTransport.connect(
             uri,
             subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
-            open_timeout=self._ws_config.open_timeout,
-            ping_interval=self._ws_config.ping_interval,
-            ping_timeout=self._ws_config.ping_timeout,
-            close_timeout=self._ws_config.close_timeout,
+            config=self._ws_config,
         )
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
-        await ws.send(j.send_hello())
+        await transport.write(j.send_hello())
 
         while True:
-            data = await ws.recv()
+            data = await transport.read()
             to_send = j.receive(data)
             if to_send is None:
-                return types.AsyncBaseSession(ws, j.get_session_details(), self._serializer)
+                return types.AsyncBaseSession(transport, j.get_session_details(), self._serializer)
 
-            await ws.send(to_send)
+            await transport.write(to_send)

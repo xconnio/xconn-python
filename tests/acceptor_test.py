@@ -28,7 +28,7 @@ def test_accept():
 
     j = WebsocketsJoiner()
     client_base_session = j.join(f"ws://localhost:{port}/ws", "realm1")
-    client_base_session.ws.close()
+    client_base_session.close()
 
     thread.join()
     server_base_session = result[0]
