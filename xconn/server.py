@@ -1,3 +1,6 @@
+import pathlib
+import socket
+
 import aiohttp
 from aiohttp import web
 from wampproto.auth import IServerAuthenticator
@@ -49,3 +52,34 @@ class Server:
 
             site = aiohttp.web.TCPSite(runner, host=host, port=port)
             await site.start()
+
+    async def start_unix_server(self, socket_path: str) -> None:
+        if self._is_unix_socket_alive(socket_path):
+            raise RuntimeError(f"Socket at {socket_path} is already in use")
+
+        pathlib.Path(socket_path).unlink(missing_ok=True)
+
+        print(f"Listening on unix://{socket_path}")
+
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(socket_path)
+        sock.listen(128)
+        sock.setblocking(False)
+
+        app = web.Application()
+        app.router.add_get("/", self._websocket_handler)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+
+        site = web.SockSite(runner, sock)
+        await site.start()
+
+    def _is_unix_socket_alive(self, socket_path: str, timeout: float = 1.0) -> bool:
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.settimeout(timeout)
+                sock.connect(socket_path)
+            return True
+        except (socket.error, ConnectionRefusedError):
+            return False
