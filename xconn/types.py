@@ -557,6 +557,19 @@ class RegisterOptions(dict):
             self[k] = v
 
 
+class SubscribeOptions(dict):
+    def __init__(self, match: MatchOptions = None, **kwargs):
+        super().__init__()
+        if match is not None:
+            if not isinstance(match, MatchOptions):
+                raise ValueError("expected MatchOptions for 'match' WAMP option")
+
+            self["match"] = match.value
+
+        for k, v in kwargs.items():
+            self[k] = v
+
+
 class CallOptions(dict):
     def __init__(self, timeout: int = None, disclose_me: bool | None = None, **kwargs):
         super().__init__()

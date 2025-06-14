@@ -152,7 +152,7 @@ def subscribe_sync(session: Session, topic: str, func: callable):
     if inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for topic '{topic}' must not be a coroutine")
 
-    model, positional_args = _validate_topic_function(func, topic)
+    model, positional_args, options = _validate_topic_function(func, topic)
 
     def _handle_event(event: Event):
         if model is not None:
@@ -170,5 +170,5 @@ def subscribe_sync(session: Session, topic: str, func: callable):
         except Exception as e:
             print(e)
 
-    session.subscribe(topic, _handle_event)
+    session.subscribe(topic, _handle_event, options=options)
     print(f"Subscribed topic {topic}")

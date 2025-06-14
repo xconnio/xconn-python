@@ -1,5 +1,14 @@
 from xconn import App, Component, register, subscribe
-from xconn.types import Result, Event, Invocation, Depends, RegisterOptions, InvokeOptions
+from xconn.types import (
+    Result,
+    Event,
+    Invocation,
+    Depends,
+    RegisterOptions,
+    InvokeOptions,
+    SubscribeOptions,
+    MatchOptions,
+)
 
 from models import InData, OutData, UserProfile, Address, ContactInfo
 
@@ -23,7 +32,7 @@ async def included_echo(data: InData) -> tuple[str, str, int]:
     return data.first_name, data.last_name, data.age
 
 
-@functional_component.subscribe("io.xconn.component.yo")
+@functional_component.subscribe("io.xconn.component.yo", options=SubscribeOptions(match=MatchOptions.PREFIX))
 async def included_event(data: InData) -> None:
     print(data)
 
