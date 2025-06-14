@@ -1,7 +1,6 @@
 import contextlib
 import random
 import inspect
-from multiprocessing import Process
 import threading
 import time
 from typing import Any, Generator
@@ -14,7 +13,6 @@ from xconn._client.helpers import (
     _handle_result,
     _sanitize_incoming_data,
     collect_docs,
-    serve_schema_sync,
     select_authenticator,
     start_server_sync,
     wait_for_server,
@@ -28,7 +26,7 @@ from xconn._client.helpers import (
 from xconn._client.types import ClientConfig
 from xconn.client import Client
 from xconn.session import Session
-from xconn.types import Event, Invocation, Result
+from xconn.types import Event, Invocation, Result, RegisterOptions, InvokeOptions
 
 
 def _setup(app: App, session: Session):
@@ -41,7 +39,7 @@ def _setup(app: App, session: Session):
         subscribe_sync(session, uri, func)
 
 
-def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, start_router: bool = False):
+def connect_sync(app: App, config: ClientConfig, start_router: bool = False):
     if start_router:
         threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
 
@@ -76,7 +74,7 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
     session = client.connect(config.url, config.realm, on_connect, on_disconnect)
     _setup(app, session)
 
-    if serve_schema:
+    if app.schema_procedure is not None and app.schema_procedure != "":
         docs = []
 
         for uri, func in app.procedures.items():
@@ -85,8 +83,12 @@ def connect_sync(app: App, config: ClientConfig, serve_schema: bool = False, sta
         for uri, func in app.topics.items():
             docs.append(collect_docs(uri, func, "topic"))
 
-        docs_process = Process(target=serve_schema_sync, args=(config.schema_host, config.schema_port, docs))
-        docs_process.start()
+        def get_schema(_: Invocation) -> Result:
+            return Result(args=docs)
+
+        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
+        session.register(app.schema_procedure, get_schema, options=options)
+        print(f"serving schema at procedure {app.schema_procedure}")
 
 
 @contextlib.contextmanager

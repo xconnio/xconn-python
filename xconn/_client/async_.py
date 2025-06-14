@@ -11,7 +11,6 @@ from xconn._client.helpers import (
     _handle_result,
     _sanitize_incoming_data,
     collect_docs,
-    serve_schema_async,
     select_authenticator,
     start_server_async,
     handle_model_validation,
@@ -24,7 +23,7 @@ from xconn._client.helpers import (
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
 from xconn.async_session import AsyncSession
-from xconn.types import Event, Invocation, Result
+from xconn.types import Event, Invocation, Result, RegisterOptions, InvokeOptions
 
 
 async def _setup(app: App, session: AsyncSession):
@@ -37,7 +36,7 @@ async def _setup(app: App, session: AsyncSession):
         await subscribe_async(session, uri, func)
 
 
-async def connect_async(app: App, config: ClientConfig, serve_schema=True, start_router: bool = False):
+async def connect_async(app: App, config: ClientConfig, start_router: bool = False):
     if start_router:
         await start_server_async(config)
 
@@ -69,7 +68,7 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
     session = await client.connect(config.url, config.realm, on_connect, on_disconnect)
     await _setup(app, session)
 
-    if serve_schema:
+    if app.schema_procedure is not None and app.schema_procedure != "":
         docs = []
 
         for uri, func in app.procedures.items():
@@ -78,7 +77,12 @@ async def connect_async(app: App, config: ClientConfig, serve_schema=True, start
         for uri, func in app.topics.items():
             docs.append(collect_docs(uri, func, "topic"))
 
-        await serve_schema_async(config.schema_host, config.schema_port, docs)
+        async def get_schema(_: Invocation) -> Result:
+            return Result(args=docs)
+
+        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
+        await session.register(app.schema_procedure, get_schema, options=options)
+        print(f"serving schema at procedure {app.schema_procedure}")
 
 
 @contextlib.asynccontextmanager

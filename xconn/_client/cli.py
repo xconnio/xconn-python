@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 import importlib
 import os
 import sys
-import ipaddress
 
 import yaml
 
@@ -24,8 +23,6 @@ def handle_start(command_args: CommandArgs):
             secret=command_args.secret,
             ticket=command_args.ticket,
             private_key=command_args.private_key,
-            schema_host=command_args.schema_host,
-            schema_port=command_args.schema_port,
         )
         config.websocket_config = WebsocketConfig(
             command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
@@ -55,9 +52,6 @@ def handle_start(command_args: CommandArgs):
 
     config.authmethod = helpers.select_authmethod(config)
 
-    # validate schema host
-    ipaddress.ip_address(config.schema_host)
-
     split = command_args.app.split(":")
     if len(split) != 2:
         raise RuntimeError("invalid app argument, must be of format: module:instance")
@@ -69,9 +63,9 @@ def handle_start(command_args: CommandArgs):
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     if command_args.asyncio:
-        run(connect_async(app, config, serve_schema=True, start_router=command_args.start_router))
+        run(connect_async(app, config, start_router=command_args.start_router))
     else:
-        connect_sync(app, config, serve_schema=True, start_router=command_args.start_router)
+        connect_sync(app, config, start_router=command_args.start_router)
 
 
 def handle_init(
@@ -80,8 +74,6 @@ def handle_init(
     authid: str,
     authmethod: str,
     secret: str,
-    schema_host: str,
-    schema_port: int,
     open_timeout: int,
     ping_interval: int,
     ping_timeout: int,
@@ -99,8 +91,6 @@ def handle_init(
                     "authid": authid,
                     "authmethod": authmethod,
                     "secret": secret,
-                    "schema_host": schema_host,
-                    "schema_port": schema_port,
                     "websocket_config": {
                         "open_timeout": open_timeout,
                         "ping_interval": ping_interval,
@@ -127,8 +117,6 @@ def add_client_subparser(subparsers):
     start.add_argument("--realm", type=str)
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
-    start.add_argument("--schema-host", type=str, default="127.0.0.1")
-    start.add_argument("--schema-port", type=int, default=9000)
     start.add_argument("--router", action="store_true", default=False)
     start.add_argument("--authid", type=str)
     start.add_argument("--secret", type=str)
@@ -138,6 +126,7 @@ def add_client_subparser(subparsers):
     start.add_argument("--open-timeout", type=int, default=10)
     start.add_argument("--ping-interval", type=int, default=20)
     start.add_argument("--ping-timeout", type=int, default=20)
+    start.add_argument("--schema-proc", type=str)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
     stop = client_subparsers.add_parser("stop", help="Stop client")
@@ -150,8 +139,6 @@ def add_client_subparser(subparsers):
     init.add_argument("--authid", type=str, default="anonymous")
     init.add_argument("--authmethod", type=str, default="anonymous")
     init.add_argument("--secret", type=str, default="")
-    init.add_argument("--schema-host", type=str, default="127.0.0.1")
-    init.add_argument("--schema-port", type=int, default=9000)
     init.add_argument("--open-timeout", type=int, default=10)
     init.add_argument("--ping-interval", type=int, default=20)
     init.add_argument("--ping-timeout", type=int, default=20)
@@ -162,8 +149,6 @@ def add_client_subparser(subparsers):
             args.authid,
             args.authmethod,
             args.secret,
-            args.schema_host,
-            args.schema_port,
             args.open_timeout,
             args.ping_interval,
             args.ping_timeout,
