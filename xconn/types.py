@@ -108,7 +108,7 @@ class ITransport:
     def is_connected(self) -> bool:
         raise NotImplementedError()
 
-    def ping(self, data: str | bytes | None = None) -> None:
+    def ping(self, timeout: int = 10) -> float:
         raise NotImplementedError()
 
 
@@ -125,7 +125,7 @@ class IAsyncTransport:
     async def is_connected(self) -> bool:
         raise NotImplementedError()
 
-    async def ping(self, data: str | bytes | None = None) -> None:
+    async def ping(self, timeout: int = 10) -> float:
         raise NotImplementedError()
 
 
