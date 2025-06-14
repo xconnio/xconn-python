@@ -272,8 +272,13 @@ class WebSocketTransport(ITransport):
     def is_connected(self) -> bool:
         return self._websocket.state == State.OPEN
 
-    def ping(self, data: bytes) -> None:
-        return self._websocket.ping(data)
+    def ping(self, timeout: int = 10) -> float:
+        payload, _, created_at = create_ping()
+
+        event = self._websocket.ping(payload)
+        event.wait(timeout)
+        received_at = time.time() * 1000
+        return received_at - created_at
 
 
 class AsyncWebSocketTransport(IAsyncTransport):
@@ -319,5 +324,10 @@ class AsyncWebSocketTransport(IAsyncTransport):
     async def is_connected(self) -> bool:
         return self._websocket.state == State.OPEN
 
-    async def ping(self, data: bytes) -> None:
-        return await self._websocket.ping(data)
+    async def ping(self, timeout: int = 10) -> float:
+        payload, _, created_at = create_ping()
+
+        awaitable = await self._websocket.ping(payload)
+        await asyncio.wait_for(awaitable, timeout)
+        received_at = time.time() * 1000
+        return received_at - created_at
