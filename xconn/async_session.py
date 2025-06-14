@@ -1,4 +1,3 @@
-import os
 import asyncio
 import inspect
 from asyncio import Future, get_event_loop
@@ -270,10 +269,8 @@ class AsyncSession:
         if await self.base_session.transport.is_connected():
             await self.base_session.close()
 
-    async def ping(self) -> None:
-        payload = os.urandom(16)
-        pong_waiter = await self.base_session.transport.ping(payload)
-        await asyncio.wait_for(pong_waiter, timeout=10)
+    async def ping(self, timeout: int = 10) -> float:
+        return await self.base_session.transport.ping(timeout)
 
     def on_disconnect(self, callback: Callable[[], Awaitable[None]]) -> None:
         if callback is not None:

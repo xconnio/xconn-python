@@ -1,4 +1,3 @@
-import os
 from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
@@ -246,11 +245,8 @@ class Session:
 
         return self.goodbye_request.result(timeout=10)
 
-    def ping(self) -> None:
-        payload = os.urandom(16)
-        pong_event = self.base_session.transport.ping(payload)
-        if not pong_event.wait(timeout=10):
-            raise TimeoutError("ping timed out")
+    def ping(self, timeout: int = 10) -> float:
+        return self.base_session.transport.ping(timeout)
 
     def on_disconnect(self, callback: Callable[[], None]) -> None:
         if callback is not None:
