@@ -122,10 +122,11 @@ class App(Component):
         self._procedures = {}
         self._topics = {}
 
-        self._session: Session | AsyncSession = None
+        self._session: Session | AsyncSession | None = None
         self._components: list[Component] = []
 
-        self._startup_handler: Callable | Awaitable[None] = None
+        self._startup_handler: Callable | Awaitable[None] | None = None
+        self._schema_procedure: str | None = None
 
     def set_session(self, session: Session | AsyncSession):
         self._session = session
@@ -141,6 +142,10 @@ class App(Component):
     @property
     def components(self) -> list[Component]:
         return self._components
+
+    @property
+    def schema_procedure(self) -> str:
+        return self._schema_procedure
 
     def include_component(self, component: Component, prefix: str = "") -> None:
         if prefix is None or len(prefix) == 0:
@@ -160,3 +165,6 @@ class App(Component):
             raise ValueError(f"event_type {event_type} is not supported")
 
         self._startup_handler = handler
+
+    def set_schema_procedure(self, uri: str):
+        self._schema_procedure = uri

@@ -369,22 +369,6 @@ def create_app(docs: list[dict], endpoint: str):
     return app
 
 
-async def serve_schema_async(host: str, port: int, docs: list, endpoint="/schema.json"):
-    app = create_app(docs, endpoint)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host, port)
-    await site.start()
-    print(f"Schema available at http://{host}:{port}{endpoint}")
-
-
-def serve_schema_sync(host: str, port: int, docs, endpoint="/schema.json"):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(serve_schema_async(host, port, docs, endpoint=endpoint))
-    loop.run_forever()
-
-
 def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
     if config.authmethod == "cryptosign" or config.authmethod == "wampcra" or config.authmethod == "ticket":
         if config.secret == "":

@@ -54,6 +54,7 @@ async def on_startup():
 
 
 app.add_event_handler("startup", on_startup)
+app.set_schema_procedure("io.xconn.schema.get")
 
 
 @app.register("io.xconn.echo")

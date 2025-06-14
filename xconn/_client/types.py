@@ -4,8 +4,6 @@ from xconn.types import WebsocketConfig
 
 
 class ClientConfig(BaseModel):
-    schema_host: str
-    schema_port: int
     url: str
     realm: str
     websocket_config: WebsocketConfig = WebsocketConfig()
@@ -23,16 +21,14 @@ class CommandArgs(BaseModel):
     realm: str | None = None
     directory: str | None = None
     asyncio: bool
-    schema_host: str
-    schema_port: int
     no_config: bool
     start_router: bool = Field(alias="router")
+
+    open_timeout: int
+    ping_interval: int
+    ping_timeout: int
 
     authid: str | None = None
     ticket: str | None = None
     secret: str | None = None
     private_key: str | None = None
-
-    open_timeout: int
-    ping_interval: int
-    ping_timeout: int
