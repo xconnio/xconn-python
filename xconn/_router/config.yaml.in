@@ -1,0 +1,38 @@
+version: '1'
+
+realms:
+  - name: realm1
+
+transports:
+  - type: websocket
+    port: 8080
+    host: localhost
+    serializers:
+      - json
+      - cbor
+      - msgpack
+
+authenticators:
+  cryptosign:
+    - authid: john
+      realm: realm1
+      role: anonymous
+      authorized_keys:
+        - 20e6ff0eb2552204fac19a15a61da586e437abd64a545bedce61a89b48184fcb
+
+  wampcra:
+    - authid: john
+      realm: realm1
+      role: anonymous
+      secret: hello
+
+  ticket:
+    - authid: john
+      realm: realm1
+      role: anonymous
+      ticket: hello
+
+  anonymous:
+    - authid: john
+      realm: realm1
+      role: anonymous
