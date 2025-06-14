@@ -146,7 +146,10 @@ class AsyncSession:
             request.set_result(None)
         elif isinstance(msg, messages.Event):
             endpoint = self.subscriptions[msg.subscription_id]
-            await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            try:
+                await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+            except Exception as e:
+                print(e)
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:

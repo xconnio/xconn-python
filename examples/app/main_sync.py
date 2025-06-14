@@ -53,9 +53,9 @@ def echo(inv: Invocation) -> Result:
 
 
 @app.subscribe("io.xconn.yo")
-def login(event: Event) -> None:
+def login(name: str, city: str) -> None:
     print(app.session)
-    print(event.args)
+    print(name, city)
 
 
 @app.register("io.xconn.not_allowed", allowed_roles=["test"])

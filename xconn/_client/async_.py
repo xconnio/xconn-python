@@ -19,6 +19,7 @@ from xconn._client.helpers import (
     MAX_WAIT,
     ProcedureMetadata,
     assemble_call_details,
+    assemble_event_details,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -146,22 +147,33 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for topic '{topic}' must be a coroutine")
 
-    model, positional_args, options = _validate_topic_function(func, topic)
+    meta = _validate_topic_function(func, topic)
 
     async def _handle_event(event: Event) -> None:
-        if model is not None:
-            kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
-            try:
-                await func(model(**kwargs))
-            except Exception as e:
-                print(e)
+        details = assemble_event_details(topic, meta, event)
 
-            return
+        if meta.dynamic_model:
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)
+            handle_model_validation(meta.request_model, **kwargs)
 
-        try:
-            await func(event)
-        except Exception as e:
-            print(e)
+            async with resolve_dependencies(meta) as deps:
+                await func(**kwargs, **deps, **details)
 
-    await session.subscribe(topic, _handle_event, options=options)
+        elif meta.request_model is not None:
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)
+            model = handle_model_validation(meta.request_model, **kwargs)
+
+            async with resolve_dependencies(meta) as deps:
+                input_data = {meta.positional_field_name: model}
+                await func(**input_data, **deps, **details)
+
+        elif meta.no_args:
+            async with resolve_dependencies(meta) as deps:
+                await func(**deps, **details)
+        else:
+            async with resolve_dependencies(meta) as deps:
+                input_data = {meta.positional_field_name: event}
+                await func(**input_data, **deps, **details)
+
+    await session.subscribe(topic, _handle_event, options=meta.subscribe_options)
     print(f"Subscribed topic {topic}")
