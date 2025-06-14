@@ -72,9 +72,9 @@ async def echo(inv: Invocation) -> Result:
 
 
 @app.subscribe("io.xconn.yo")
-async def login(event: Event) -> None:
+async def login(name: str, city: str) -> None:
     print(app.session)
-    print(event.args)
+    print(name, city)
 
 
 @app.register("io.xconn.dynamic")

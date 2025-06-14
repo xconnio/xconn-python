@@ -514,9 +514,21 @@ class CallDetails(_IncomingDetails):
         return self.get("caller_authrole")
 
 
-class PublicationDetails(_IncomingDetails):
+class EventDetails(_IncomingDetails):
     def __init__(self, details: dict | None = None):
         super().__init__(details)
+
+    @property
+    def session_id(self) -> int | None:
+        return self.get("publisher")
+
+    @property
+    def authid(self) -> str | None:
+        return self.get("publisher_authid")
+
+    @property
+    def authrole(self) -> str | None:
+        return self.get("publisher_authrole")
 
 
 class InvokeOptions(Enum):
