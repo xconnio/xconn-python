@@ -4,7 +4,7 @@ import inspect
 
 from pydantic import BaseModel
 
-from xconn.types import RegisterOptions
+from xconn.types import RegisterOptions, SubscribeOptions
 from xconn.client import Session, AsyncSession
 
 
@@ -47,9 +47,10 @@ def register(
     return _register
 
 
-def subscribe(topic: str):
+def subscribe(topic: str, options: dict | SubscribeOptions | None = None):
     def _subscribe(func):
         func.__xconn_topic__ = topic
+        func.__xconn_subscribe_options__ = options
         return func
 
     return _subscribe
@@ -106,11 +107,12 @@ class Component(IComponent):
 
         return _register
 
-    def subscribe(self, topic: str):
+    def subscribe(self, topic: str, options: dict | SubscribeOptions | None = None):
         def _subscribe(func):
             if topic in self._topics:
                 raise ValueError(f"topic {topic} already registered")
 
+            func.__xconn_subscribe_options__ = options
             self._topics[topic] = func
 
         return _subscribe

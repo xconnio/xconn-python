@@ -146,7 +146,7 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for topic '{topic}' must be a coroutine")
 
-    model, positional_args = _validate_topic_function(func, topic)
+    model, positional_args, options = _validate_topic_function(func, topic)
 
     async def _handle_event(event: Event) -> None:
         if model is not None:
@@ -163,5 +163,5 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
         except Exception as e:
             print(e)
 
-    await session.subscribe(topic, _handle_event)
+    await session.subscribe(topic, _handle_event, options=options)
     print(f"Subscribed topic {topic}")

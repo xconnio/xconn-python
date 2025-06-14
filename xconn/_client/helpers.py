@@ -333,7 +333,9 @@ def _validate_topic_function(func: callable, uri: str):
                 if value.is_required:
                     positional_args.append(key)
 
-    return pydantic_model, positional_args
+    options = getattr(func, "__xconn_subscribe_options__", None)
+
+    return pydantic_model, positional_args, options
 
 
 def _sanitize_incoming_data(args: list, kwargs: dict, model_positional_args: list[str]):
