@@ -1,4 +1,5 @@
 import contextlib
+import os
 import time
 import socket
 import asyncio
@@ -373,9 +374,6 @@ def create_app(docs: list[dict], endpoint: str):
 
 def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
     if config.authmethod == "cryptosign" or config.authmethod == "wampcra" or config.authmethod == "ticket":
-        if config.secret == "":
-            raise RuntimeError("secret must not be empty")
-
         if config.authmethod == "wampcra":
             auth = WAMPCRAAuthenticator(config.authid, config.secret)
         elif config.authmethod == "ticket":
@@ -407,13 +405,18 @@ def is_non_empty(value):
     return value is not None and value != ""
 
 
-def validate_auth_inputs(private_key: str | None, ticket: str | None, secret: str | None) -> None:
-    if is_non_empty(private_key) and is_non_empty(ticket):
+def validate_auth_inputs(config: ClientConfig) -> None:
+    if is_non_empty(config.private_key) and is_non_empty(config.ticket):
         raise ValueError("provide only one of private key, ticket or secret")
-    elif is_non_empty(ticket) and is_non_empty(secret):
+    elif is_non_empty(config.ticket) and is_non_empty(config.secret):
         raise ValueError("provide only one of private key, ticket or secret")
-    elif is_non_empty(private_key) and is_non_empty(secret):
+    elif is_non_empty(config.private_key) and is_non_empty(config.secret):
         raise ValueError("provide only one of private key, ticket or secret")
+
+    if config.authid is None and any(
+        is_non_empty(value) for value in (config.private_key, config.ticket, config.secret)
+    ):
+        raise ValueError("authid is required with any of private key, ticket or secret")
 
 
 def select_authmethod(config: ClientConfig) -> str:
@@ -474,3 +477,22 @@ def assemble_call_details(uri: str, meta: ProcedureMetadata, invocation: Invocat
         details[meta.call_details_field] = CallDetails(invocation.details)
 
     return details
+
+
+def load_config_from_env() -> ClientConfig:
+    url = os.environ.get("XCONN_URL", None)
+    if url is None or url == "":
+        raise RuntimeError("XCONN_URL missing in environment variable")
+
+    realm = os.environ.get("XCONN_REALM", None)
+    if realm is None or realm == "":
+        raise RuntimeError("XCONN_REALM missing in environment variable")
+
+    return ClientConfig(
+        url=url,
+        realm=realm,
+        authid=os.environ.get("XCONN_AUTHID", None),
+        secret=os.environ.get("XCONN_SECRET", None),
+        ticket=os.environ.get("XCONN_TICKET", None),
+        private_key=os.environ.get("XCONN_PRIVATE_KEY", None),
+    )

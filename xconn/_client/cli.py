@@ -4,18 +4,21 @@ import os
 import sys
 
 import yaml
+from dotenv import load_dotenv
+
+# ruff: noqa: E402
+load_dotenv()
 
 from xconn import App, run
 from xconn._client import helpers
 from xconn.types import WebsocketConfig
 from xconn._client.sync import connect_sync
 from xconn._client.async_ import connect_async
-from xconn._client.types import ClientConfig, CommandArgs
+from xconn._client.types import ClientConfig, CommandArgs, ConfigSource
 
 
 def handle_start(command_args: CommandArgs):
-    if command_args.no_config:
-        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
+    if command_args.config_from == ConfigSource.cmd:
         config = ClientConfig(
             url=command_args.url,
             realm=command_args.realm,
@@ -27,7 +30,8 @@ def handle_start(command_args: CommandArgs):
         config.websocket_config = WebsocketConfig(
             command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
         )
-
+    elif command_args.config_from == ConfigSource.env:
+        config = helpers.load_config_from_env()
     else:
         config_path = os.path.join(command_args.directory, "client.yaml")
         if not os.path.exists(config_path):
@@ -48,8 +52,8 @@ def handle_start(command_args: CommandArgs):
             config_raw = yaml.safe_load(f)
 
         config = ClientConfig(**config_raw)
-        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
 
+    helpers.validate_auth_inputs(config)
     config.authmethod = helpers.select_authmethod(config)
 
     split = command_args.app.split(":")
@@ -122,7 +126,7 @@ def add_client_subparser(subparsers):
     start.add_argument("--secret", type=str)
     start.add_argument("--ticket", type=str)
     start.add_argument("--private-key", type=str)
-    start.add_argument("--no-config", action="store_true", default=False)
+    start.add_argument("--config-from", choices=list(ConfigSource), type=str)
     start.add_argument("--open-timeout", type=int, default=10)
     start.add_argument("--ping-interval", type=int, default=20)
     start.add_argument("--ping-timeout", type=int, default=20)
