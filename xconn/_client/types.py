@@ -21,8 +21,8 @@ class CommandArgs(BaseModel):
     realm: str | None = None
     directory: str | None = None
     asyncio: bool
-    no_config: bool
     start_router: bool = Field(alias="router")
+    from_config: bool | str | None = None
 
     open_timeout: int
     ping_interval: int

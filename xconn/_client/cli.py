@@ -1,7 +1,7 @@
-from argparse import ArgumentParser
 import importlib
 import os
 import sys
+from argparse import ArgumentParser, Action
 
 import yaml
 
@@ -13,25 +13,22 @@ from xconn._client.async_ import connect_async
 from xconn._client.types import ClientConfig, CommandArgs
 
 
-def handle_start(command_args: CommandArgs):
-    if command_args.no_config:
-        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
-        config = ClientConfig(
-            url=command_args.url,
-            realm=command_args.realm,
-            authid=command_args.authid,
-            secret=command_args.secret,
-            ticket=command_args.ticket,
-            private_key=command_args.private_key,
-        )
-        config.websocket_config = WebsocketConfig(
-            command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
-        )
+class FromConfigAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            setattr(namespace, self.dest, True)
+        else:
+            setattr(namespace, self.dest, values)
 
-    else:
-        config_path = os.path.join(command_args.directory, "client.yaml")
+
+def handle_start(command_args: CommandArgs):
+    if command_args.from_config:
+        if isinstance(command_args.from_config, bool):
+            config_path = os.path.join(command_args.directory, "client.yaml")
+        else:
+            config_path = os.path.join(command_args.directory, command_args.from_config)
         if not os.path.exists(config_path):
-            print("client.yaml not found, initialize a client first")
+            print(f"config file '{config_path}' not found, initialize a client first")
             exit(1)
 
         flags = (
@@ -49,6 +46,19 @@ def handle_start(command_args: CommandArgs):
 
         config = ClientConfig(**config_raw)
         helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
+    else:
+        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
+        config = ClientConfig(
+            url=command_args.url,
+            realm=command_args.realm,
+            authid=command_args.authid,
+            secret=command_args.secret,
+            ticket=command_args.ticket,
+            private_key=command_args.private_key,
+        )
+        config.websocket_config = WebsocketConfig(
+            command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
+        )
 
     config.authmethod = helpers.select_authmethod(config)
 
@@ -122,11 +132,11 @@ def add_client_subparser(subparsers):
     start.add_argument("--secret", type=str)
     start.add_argument("--ticket", type=str)
     start.add_argument("--private-key", type=str)
-    start.add_argument("--no-config", action="store_true", default=False)
     start.add_argument("--open-timeout", type=int, default=10)
     start.add_argument("--ping-interval", type=int, default=20)
     start.add_argument("--ping-timeout", type=int, default=20)
     start.add_argument("--schema-proc", type=str)
+    start.add_argument("--from-config", nargs="?", action=FromConfigAction, default=None)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
     stop = client_subparsers.add_parser("stop", help="Stop client")
