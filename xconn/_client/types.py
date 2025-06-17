@@ -1,6 +1,14 @@
+import enum
+
 from pydantic import BaseModel, Field
 
 from xconn.types import WebsocketConfig
+
+
+class ConfigSource(str, enum.Enum):
+    cmd = "cmd"
+    env = "env"
+    config = "config"
 
 
 class ClientConfig(BaseModel):
@@ -21,7 +29,7 @@ class CommandArgs(BaseModel):
     realm: str | None = None
     directory: str | None = None
     asyncio: bool
-    no_config: bool
+    config_from: str | None = None
     start_router: bool = Field(alias="router")
 
     open_timeout: int
