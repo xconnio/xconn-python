@@ -1,6 +1,3 @@
-from inspect import signature
-
-from pydantic import validate_call
 from wampproto import serializers
 from wampproto.messages import Error
 from wampproto.transports.rawsocket import SERIALIZER_TYPE_JSON, SERIALIZER_TYPE_MSGPACK, SERIALIZER_TYPE_CBOR
@@ -53,12 +50,3 @@ def exception_from_error(error: Error):
         exc.kwargs = error.kwargs
 
     return exc
-
-
-def validate_data(func):
-    sig = signature(func)
-    for param_name, param in sig.parameters.items():
-        if param.annotation is param.empty:
-            raise TypeError(f"Parameter '{param_name}' is missing a type annotation.")
-
-    return validate_call(func)
