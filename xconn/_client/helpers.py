@@ -35,7 +35,7 @@ from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result, Depends, CallDetails, RegisterOptions, SubscribeOptions, EventDetails
 
-MAX_WAIT = 300
+MAX_WAIT = 60
 INITIAL_WAIT = 1
 
 
