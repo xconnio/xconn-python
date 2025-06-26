@@ -38,14 +38,11 @@ test = [
 publish = ["twine", "build"]
 
 [project.scripts]
-"xconn" = "xconn.__main__:main"
+"xconnapp" = "xconn.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/xconnio/xconn-python"
 "Bug Tracker" = "https://github.com/xconnio/xconn-python/issues"
-
-[tool.setuptools.package-data]
-"xconn" = ["_router/config.yaml.in"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
