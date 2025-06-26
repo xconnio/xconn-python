@@ -11,7 +11,6 @@ authors = [
 ]
 description = "https://github.com/xconnio/xconn-python"
 readme = "README.md"
-license = {file = "LICENSE"}
 dependencies = [
   "websockets",
   "wampproto@git+https://github.com/xconnio/wampproto-python",
