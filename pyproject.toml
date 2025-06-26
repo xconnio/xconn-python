@@ -38,7 +38,7 @@ test = [
 publish = ["twine", "build"]
 
 [project.scripts]
-"xconnapp" = "xconn.__main__:main"
+"xapp" = "xconn.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/xconnio/xconn-python"
