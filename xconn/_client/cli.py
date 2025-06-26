@@ -101,17 +101,19 @@ def handle_init(
 
 
 def handle_stop(directory: str):
+    # TODO: when the app starts create a xapp.pid with the pid of the process
+    #  when stop is called just request the OS to kill that PID.
     print(directory)
 
 
 def add_client_subparser(subparsers):
-    start = subparsers.add_parser("start", help="Start client")
+    start = subparsers.add_parser("start", help="Start XConn App")
     start.add_argument("APP", type=str)
     start.add_argument("--url", type=str)
     start.add_argument("--realm", type=str)
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
-    start.add_argument("--router", action="store_true", default=False)
+    start.add_argument("--start-router", action="store_true", default=False)
     start.add_argument("--authid", type=str)
     start.add_argument("--secret", type=str)
     start.add_argument("--ticket", type=str)
@@ -123,11 +125,11 @@ def add_client_subparser(subparsers):
     start.add_argument("--schema-proc", type=str)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
-    stop = subparsers.add_parser("stop", help="Stop client")
+    stop = subparsers.add_parser("stop", help="Stop a running XConn App")
     stop.add_argument("--directory", type=str, default=".")
     stop.set_defaults(func=lambda args: handle_stop(args.directory))
 
-    init = subparsers.add_parser("init", help="Init client")
+    init = subparsers.add_parser("init", help="Init a new XConn App")
     init.add_argument("--url", type=str, default="ws://127.0.0.1:8080/ws")
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
