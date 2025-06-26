@@ -22,7 +22,7 @@ class CommandArgs(BaseModel):
     directory: str | None = None
     asyncio: bool
     no_config: bool
-    start_router: bool = Field(alias="router")
+    start_router: bool
 
     open_timeout: int
     ping_interval: int

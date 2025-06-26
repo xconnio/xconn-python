@@ -28,9 +28,9 @@ def handle_start(command_args: CommandArgs):
         )
 
     else:
-        config_path = os.path.join(command_args.directory, "client.yaml")
+        config_path = os.path.join(command_args.directory, "xapp.yaml")
         if not os.path.exists(config_path):
-            print("client.yaml not found, initialize a client first")
+            print("xapp.yaml not found, initialize a client first")
             exit(1)
 
         flags = (
@@ -77,11 +77,15 @@ def handle_init(
     ping_interval: int,
     ping_timeout: int,
 ):
-    if os.path.exists("client.yaml"):
-        print("client.yaml already exists")
+    if os.path.exists("xapp.yaml"):
+        print("xapp.yaml already exists")
         exit(1)
 
-    with open("client.yaml", "w") as f:
+    if os.path.exists("xapp.py"):
+        print("xapp.py already exists")
+        exit(1)
+
+    with open("xapp.yaml", "w") as f:
         f.write(
             yaml.dump(
                 {
@@ -99,19 +103,42 @@ def handle_init(
             )
         )
 
+    with open("sample.py", "w") as f:
+        f.write("""from xconn import App
+
+app = App()
+
+@app.register("io.xconn.hello")
+async def my_procedure(first_name: str, last_name: str, age: int):
+    print(first_name + " " + last_name + " " + str(age))
+    return first_name, last_name, age
+
+
+@app.subscribe("io.xconn.publish")
+async def my_topic():
+    print("received event...")
+""")
+
+    print("XConn App initialized.")
+    print("The config is xapp.yaml and sample app is sample.py. Run below command to start the sample")
+    print("")
+    print("xapp start sample:app --asyncio --start-router")
+
 
 def handle_stop(directory: str):
+    # TODO: when the app starts create a xapp.pid with the pid of the process
+    #  when stop is called just request the OS to kill that PID.
     print(directory)
 
 
 def add_client_subparser(subparsers):
-    start = subparsers.add_parser("start", help="Start client")
+    start = subparsers.add_parser("start", help="Start XConn App")
     start.add_argument("APP", type=str)
     start.add_argument("--url", type=str)
     start.add_argument("--realm", type=str)
     start.add_argument("--directory", type=str, default=".")
     start.add_argument("--asyncio", action="store_true", default=False)
-    start.add_argument("--router", action="store_true", default=False)
+    start.add_argument("--start-router", action="store_true", default=False)
     start.add_argument("--authid", type=str)
     start.add_argument("--secret", type=str)
     start.add_argument("--ticket", type=str)
@@ -120,14 +147,13 @@ def add_client_subparser(subparsers):
     start.add_argument("--open-timeout", type=int, default=10)
     start.add_argument("--ping-interval", type=int, default=20)
     start.add_argument("--ping-timeout", type=int, default=20)
-    start.add_argument("--schema-proc", type=str)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
-    stop = subparsers.add_parser("stop", help="Stop client")
+    stop = subparsers.add_parser("stop", help="Stop a running XConn App")
     stop.add_argument("--directory", type=str, default=".")
     stop.set_defaults(func=lambda args: handle_stop(args.directory))
 
-    init = subparsers.add_parser("init", help="Init client")
+    init = subparsers.add_parser("init", help="Init a new XConn App")
     init.add_argument("--url", type=str, default="ws://127.0.0.1:8080/ws")
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
