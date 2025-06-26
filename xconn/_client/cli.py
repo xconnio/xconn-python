@@ -28,9 +28,9 @@ def handle_start(command_args: CommandArgs):
         )
 
     else:
-        config_path = os.path.join(command_args.directory, "client.yaml")
+        config_path = os.path.join(command_args.directory, "xapp.yaml")
         if not os.path.exists(config_path):
-            print("client.yaml not found, initialize a client first")
+            print("xapp.yaml not found, initialize a client first")
             exit(1)
 
         flags = (
@@ -77,11 +77,15 @@ def handle_init(
     ping_interval: int,
     ping_timeout: int,
 ):
-    if os.path.exists("client.yaml"):
-        print("client.yaml already exists")
+    if os.path.exists("xapp.yaml"):
+        print("xapp.yaml already exists")
         exit(1)
 
-    with open("client.yaml", "w") as f:
+    if os.path.exists("xapp.py"):
+        print("xapp.py already exists")
+        exit(1)
+
+    with open("xapp.yaml", "w") as f:
         f.write(
             yaml.dump(
                 {
@@ -98,6 +102,27 @@ def handle_init(
                 }
             )
         )
+
+    with open("sample.py", "w") as f:
+        f.write("""from xconn import App
+
+app = App()
+
+@app.register("io.xconn.hello")
+async def my_procedure(first_name: str, last_name: str, age: int):
+    print(first_name + " " + last_name + " " + str(age))
+    return first_name, last_name, age
+
+
+@app.subscribe("io.xconn.publish")
+async def my_topic():
+    print("received event...")
+""")
+
+    print("XConn App initialized.")
+    print("The config is xapp.yaml and sample app is sample.py. Run below command to start the sample")
+    print("")
+    print("xapp start sample:app --asyncio --start-router")
 
 
 def handle_stop(directory: str):
