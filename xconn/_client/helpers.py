@@ -80,7 +80,11 @@ def create_model_from_func(func):
 
     for param_name, param in signature.parameters.items():
         annotated_type = type_hints.get(param_name)
-        if is_subclass_of_any(annotated_type, CallDetails) or is_subclass_of_any(annotated_type, Depends):
+        if (
+            is_subclass_of_any(annotated_type, CallDetails)
+            or is_subclass_of_any(annotated_type, Depends)
+            or is_subclass_of_any(annotated_type, EventDetails)
+        ):
             continue
 
         # Handle default values
