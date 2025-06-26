@@ -22,6 +22,7 @@ from xconn._client.helpers import (
     MAX_WAIT,
     ProcedureMetadata,
     assemble_call_details,
+    assemble_event_details,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -152,23 +153,33 @@ def subscribe_sync(session: Session, topic: str, func: callable):
     if inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for topic '{topic}' must not be a coroutine")
 
-    model, positional_args, options = _validate_topic_function(func, topic)
+    meta = _validate_topic_function(func, topic)
 
     def _handle_event(event: Event):
-        if model is not None:
-            kwargs = _sanitize_incoming_data(event.args, event.kwargs, positional_args)
+        details = assemble_event_details(topic, meta, event)
 
-            try:
-                func(model(**kwargs))
-            except Exception as e:
-                print(e)
+        if meta.dynamic_model:
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)
+            handle_model_validation(meta.request_model, **kwargs)
 
-            return
+            with resolve_dependencies(meta) as deps:
+                func(**kwargs, **deps, **details)
 
-        try:
-            func(event)
-        except Exception as e:
-            print(e)
+        elif meta.request_model is not None:
+            kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)
+            model = handle_model_validation(meta.request_model, **kwargs)
 
-    session.subscribe(topic, _handle_event, options=options)
+            with resolve_dependencies(meta) as deps:
+                input_data = {meta.positional_field_name: model}
+                func(**input_data, **deps, **details)
+
+        elif meta.no_args:
+            with resolve_dependencies(meta) as deps:
+                func(**deps, **details)
+        else:
+            with resolve_dependencies(meta) as deps:
+                input_data = {meta.positional_field_name: event}
+                func(**input_data, **deps, **details)
+
+    session.subscribe(topic, _handle_event, options=meta.subscribe_options)
     print(f"Subscribed topic {topic}")
