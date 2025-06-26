@@ -41,11 +41,11 @@ def _setup(app: App, session: Session):
 
 
 def connect_sync(app: App, config: ClientConfig, start_router: bool = False):
+    ws_url = urlparse(config.url)
+
     if start_router:
         threading.Thread(target=start_server_sync, args=(config,), daemon=True).start()
-
-    ws_url = urlparse(config.url)
-    wait_for_server(ws_url.hostname, ws_url.port, 10)
+        wait_for_server(ws_url.hostname, ws_url.port, 5)
 
     auth = select_authenticator(config)
     client = Client(authenticator=auth, ws_config=config.websocket_config)
