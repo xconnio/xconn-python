@@ -1,7 +1,6 @@
 import argparse
 
 from xconn._client.cli import add_client_subparser
-from xconn._router.cli import add_router_subparser
 
 
 def main():
@@ -10,7 +9,6 @@ def main():
 
     # Add subcommands from other modules
     add_client_subparser(subparsers)
-    add_router_subparser(subparsers)
 
     args = parser.parse_args()
 

@@ -1,4 +1,3 @@
-from argparse import ArgumentParser
 import importlib
 import os
 import sys
@@ -106,12 +105,7 @@ def handle_stop(directory: str):
 
 
 def add_client_subparser(subparsers):
-    client_parser: ArgumentParser = subparsers.add_parser("client", help="Client operations")
-    client_subparsers = client_parser.add_subparsers(dest="client_command")
-
-    client_parser.set_defaults(print_help=client_parser.print_help)
-
-    start = client_subparsers.add_parser("start", help="Start client")
+    start = subparsers.add_parser("start", help="Start client")
     start.add_argument("APP", type=str)
     start.add_argument("--url", type=str)
     start.add_argument("--realm", type=str)
@@ -129,11 +123,11 @@ def add_client_subparser(subparsers):
     start.add_argument("--schema-proc", type=str)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
-    stop = client_subparsers.add_parser("stop", help="Stop client")
+    stop = subparsers.add_parser("stop", help="Stop client")
     stop.add_argument("--directory", type=str, default=".")
     stop.set_defaults(func=lambda args: handle_stop(args.directory))
 
-    init = client_subparsers.add_parser("init", help="Init client")
+    init = subparsers.add_parser("init", help="Init client")
     init.add_argument("--url", type=str, default="ws://127.0.0.1:8080/ws")
     init.add_argument("--realm", type=str, default="realm1")
     init.add_argument("--authid", type=str, default="anonymous")
