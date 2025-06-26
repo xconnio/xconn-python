@@ -122,7 +122,6 @@ def add_client_subparser(subparsers):
     start.add_argument("--open-timeout", type=int, default=10)
     start.add_argument("--ping-interval", type=int, default=20)
     start.add_argument("--ping-timeout", type=int, default=20)
-    start.add_argument("--schema-proc", type=str)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
     stop = subparsers.add_parser("stop", help="Stop a running XConn App")
