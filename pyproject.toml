@@ -13,7 +13,7 @@ description = "https://github.com/xconnio/xconn-python"
 readme = "README.md"
 dependencies = [
   "websockets",
-  "wampproto",
+  "wampproto >= 0.3.0",
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
