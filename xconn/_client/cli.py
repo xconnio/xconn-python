@@ -9,12 +9,11 @@ from xconn._client import helpers
 from xconn.types import WebsocketConfig
 from xconn._client.sync import connect_sync
 from xconn._client.async_ import connect_async
-from xconn._client.types import ClientConfig, CommandArgs
+from xconn._client.types import ClientConfig, CommandArgs, ConfigSource
 
 
 def handle_start(command_args: CommandArgs):
-    if command_args.no_config:
-        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
+    if command_args.config_source == ConfigSource.cli:
         config = ClientConfig(
             url=command_args.url,
             realm=command_args.realm,
@@ -26,29 +25,21 @@ def handle_start(command_args: CommandArgs):
         config.websocket_config = WebsocketConfig(
             command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
         )
-
+    elif command_args.config_source == ConfigSource.env:
+        config = helpers.load_config_from_env(command_args.config_file)
+    elif command_args.config_source == ConfigSource.file:
+        config = helpers.load_config_from_file(command_args.config_file)
     else:
         config_path = os.path.join(command_args.directory, "xapp.yaml")
         if not os.path.exists(config_path):
             print("xapp.yaml not found, initialize a client first")
             exit(1)
 
-        flags = (
-            command_args.url,
-            command_args.realm,
-            command_args.authid,
-            command_args.secret,
-            command_args.ticket,
-        )
-        if any(flag is not None for flag in flags):
-            raise RuntimeError("Use either config file OR the individual flags, not both")
+        config = helpers.load_config_from_yaml(config_path)
 
-        with open(config_path) as f:
-            config_raw = yaml.safe_load(f)
+    config = helpers.update_config_from_cli(config, command_args)
 
-        config = ClientConfig(**config_raw)
-        helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
-
+    helpers.validate_auth_inputs(config)
     config.authmethod = helpers.select_authmethod(config)
 
     split = command_args.app.split(":")
@@ -143,10 +134,11 @@ def add_client_subparser(subparsers):
     start.add_argument("--secret", type=str)
     start.add_argument("--ticket", type=str)
     start.add_argument("--private-key", type=str)
-    start.add_argument("--no-config", action="store_true", default=False)
-    start.add_argument("--open-timeout", type=int, default=10)
-    start.add_argument("--ping-interval", type=int, default=20)
-    start.add_argument("--ping-timeout", type=int, default=20)
+    start.add_argument("--config-file", type=str)
+    start.add_argument("--config-source", choices=list(ConfigSource), type=str)
+    start.add_argument("--open-timeout", type=int)
+    start.add_argument("--ping-interval", type=int)
+    start.add_argument("--ping-timeout", type=int)
     start.set_defaults(func=lambda args: handle_start(CommandArgs(**vars(args))))
 
     stop = subparsers.add_parser("stop", help="Stop a running XConn App")
