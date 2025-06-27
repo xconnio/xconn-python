@@ -18,6 +18,7 @@ dependencies = [
   "uvloop",
   "mkdocs-material[imaging]",
   "pydantic",
+  "python-dotenv",
 ]
 requires-python = ">=3.10"
 classifiers = [
