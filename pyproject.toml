@@ -14,7 +14,6 @@ readme = "README.md"
 dependencies = [
   "websockets",
   "wampproto",
-  #"wampproto@git+https://github.com/xconnio/wampproto-python",
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
@@ -36,6 +35,7 @@ test = [
   "ruff",
 ]
 publish = ["twine", "build"]
+dev = ["wampproto@git+https://github.com/xconnio/wampproto-python"]
 
 [project.scripts]
 "xapp" = "xconn.__main__:main"
