@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xconn"
-version = "0.2.1"
+version = "0.3.0"
 authors = [
   {name="Omer Akram", email="omer@thing.com"},
   {name="Mahad Munir", email="mahad@xconn.io"},
@@ -13,7 +13,8 @@ description = "https://github.com/xconnio/xconn-python"
 readme = "README.md"
 dependencies = [
   "websockets",
-  "wampproto@git+https://github.com/xconnio/wampproto-python",
+  "wampproto",
+  #"wampproto@git+https://github.com/xconnio/wampproto-python",
   "aiohttp",
   "uvloop",
   "mkdocs-material[imaging]",
