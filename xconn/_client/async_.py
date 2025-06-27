@@ -20,6 +20,8 @@ from xconn._client.helpers import (
     ProcedureMetadata,
     assemble_call_details,
     assemble_event_details,
+    validate_invocation_parameters,
+    validate_event_parameters,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
@@ -108,6 +110,7 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
     async def _handle_invocation(invocation: Invocation) -> Result:
         ensure_caller_allowed(invocation.details, meta.allowed_roles)
+        validate_invocation_parameters(invocation, meta)
         details = assemble_call_details(uri, meta, invocation)
 
         if meta.dynamic_model:
@@ -151,6 +154,7 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
 
     async def _handle_event(event: Event) -> None:
         details = assemble_event_details(topic, meta, event)
+        validate_event_parameters(event, meta)
 
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)

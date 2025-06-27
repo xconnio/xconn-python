@@ -1,5 +1,5 @@
-run-async:
-	xapp start main_async:app --asyncio
+run:
+	xapp start main_async:app --asyncio --start-router
 
 run-sync:
-	xapp start main_sync:app
+	xapp start main_sync:app --start-router
