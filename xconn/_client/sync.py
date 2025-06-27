@@ -23,6 +23,8 @@ from xconn._client.helpers import (
     ProcedureMetadata,
     assemble_call_details,
     assemble_event_details,
+    validate_invocation_parameters,
+    validate_event_parameters,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -114,6 +116,7 @@ def register_sync(session: Session, uri: str, func: callable):
 
     def _handle_invocation(invocation: Invocation) -> Result:
         ensure_caller_allowed(invocation.details, meta.allowed_roles)
+        validate_invocation_parameters(invocation, meta)
         details = assemble_call_details(uri, meta, invocation)
 
         if meta.dynamic_model:
@@ -157,6 +160,7 @@ def subscribe_sync(session: Session, topic: str, func: callable):
 
     def _handle_event(event: Event):
         details = assemble_event_details(topic, meta, event)
+        validate_event_parameters(event, meta)
 
         if meta.dynamic_model:
             kwargs = _sanitize_incoming_data(event.args, event.kwargs, meta.request_args)

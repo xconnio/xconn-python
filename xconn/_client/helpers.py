@@ -56,6 +56,8 @@ class BaseMetadata:
     details_field: str | None
     positional_field_name: str | None
 
+    uri: str
+
 
 @dataclass
 class ProcedureMetadata(BaseMetadata):
@@ -66,11 +68,13 @@ class ProcedureMetadata(BaseMetadata):
     allowed_roles: list[str]
 
     register_options: dict[str, Any] | RegisterOptions | None
+    func: callable
 
 
 @dataclass
 class EventMetadata(BaseMetadata):
     subscribe_options: dict[str, Any] | SubscribeOptions | None
+    func: callable
 
 
 def create_model_from_func(func):
@@ -108,7 +112,7 @@ def is_subclass_of_any(type_, base_class: Any) -> bool:
     return isinstance(type_, type) and issubclass(type_, base_class)
 
 
-def _do_it(
+def _assemble_base_metadata(
     func: callable,
     uri: str,
     incoming_class: type(Invocation) | type(Event),
@@ -241,11 +245,12 @@ def _do_it(
         async_ctx_dependencies=async_ctx_dependencies,
         details_field=details_field,
         positional_field_name=positional_field_name,
+        uri=uri,
     )
 
 
 def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
-    meta = _do_it(func, uri, Invocation, CallDetails)
+    meta = _assemble_base_metadata(func, uri, Invocation, CallDetails)
 
     response_model = getattr(func, "__xconn_response_model__", None)
     response_args = []
@@ -277,7 +282,41 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
         details_field=meta.details_field,
         positional_field_name=meta.positional_field_name,
         register_options=register_options,
+        uri=meta.uri,
+        func=func,
     )
+
+
+def validate_invocation_parameters(invocation: Invocation, meta: ProcedureMetadata):
+    msg = ""
+    if len(invocation.args) > len(meta.request_args):
+        msg += "expected {} arguments, got {}".format(len(meta.request_args), len(invocation.args))
+
+    if len(invocation.kwargs) > len(meta.request_kwargs):
+        if msg != "":
+            msg += ", "
+
+        msg += "expected {} keyword arguments, got {}".format(len(meta.request_kwargs), len(invocation.kwargs))
+
+    if msg != "":
+        raise ApplicationError("wamp.error.invalid_arguments", msg)
+
+
+def validate_event_parameters(event: Event, meta: EventMetadata):
+    msg = ""
+    if len(event.args) > len(meta.request_args):
+        msg += "expected {} arguments, got {}".format(len(meta.request_args), len(event.args))
+
+    if len(event.kwargs) > len(meta.request_kwargs):
+        if msg != "":
+            msg += ", "
+
+        msg += "expected {} keyword arguments, got {}".format(len(meta.request_kwargs), len(event.kwargs))
+
+    if msg != "":
+        prefix = f"error: function '{meta.func.__name__}' for topic '{meta.uri}' received invalid number of arguments. "
+        prefix += msg
+        raise ValueError(prefix)
 
 
 def _handle_result(
@@ -354,7 +393,7 @@ def _handle_result(
 
 
 def _validate_topic_function(func: callable, uri: str):
-    meta = _do_it(func, uri, Event, EventDetails)
+    meta = _assemble_base_metadata(func, uri, Event, EventDetails)
     options = getattr(func, "__xconn_subscribe_options__", None)
 
     return EventMetadata(
@@ -370,6 +409,8 @@ def _validate_topic_function(func: callable, uri: str):
         details_field=meta.details_field,
         positional_field_name=meta.positional_field_name,
         subscribe_options=options,
+        uri=meta.uri,
+        func=func,
     )
 
 
