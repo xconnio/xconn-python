@@ -28,9 +28,9 @@ def handle_start(command_args: CommandArgs):
         )
 
     else:
-        config_path = os.path.join(command_args.directory, "xapp.yaml")
+        config_path = os.path.join(command_args.directory, "xcorn.yaml")
         if not os.path.exists(config_path):
-            print("xapp.yaml not found, initialize a client first")
+            print("xcorn.yaml not found, initialize a client first")
             exit(1)
 
         flags = (
