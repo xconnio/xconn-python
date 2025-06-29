@@ -5,6 +5,8 @@ import asyncio
 from dataclasses import dataclass
 import inspect
 import json
+import importlib
+import sys
 from typing import (
     get_type_hints,
     Type,
@@ -31,6 +33,7 @@ from wampproto.auth import (
 )
 
 from xconn import Router, Server
+from xconn.app import App
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result, Depends, CallDetails, RegisterOptions, SubscribeOptions, EventDetails
@@ -562,3 +565,17 @@ def assemble_event_details(uri: str, meta: EventMetadata, event: Event):
         details[meta.details_field] = CallDetails(event.details)
 
     return details
+
+
+def import_app(app: str, directory: str = ".") -> App:
+    split = app.split(":")
+    if len(split) != 2:
+        raise RuntimeError("invalid app argument, must be of format: module:instance")
+
+    sys.path.append(directory)
+    module = importlib.import_module(split[0])
+    app: App = getattr(module, split[1])
+    if not isinstance(app, App):
+        raise RuntimeError(f"app instance is of unknown type {type(app)}")
+
+    return app

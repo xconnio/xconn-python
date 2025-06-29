@@ -1,10 +1,7 @@
-import importlib
 import os
-import sys
 
 import yaml
 
-from xconn import App, run
 from xconn._client import helpers
 from xconn.types import WebsocketConfig
 from xconn._client.sync import connect_sync
@@ -51,17 +48,9 @@ def handle_start(command_args: CommandArgs):
 
     config.authmethod = helpers.select_authmethod(config)
 
-    split = command_args.app.split(":")
-    if len(split) != 2:
-        raise RuntimeError("invalid app argument, must be of format: module:instance")
-
-    sys.path.append(command_args.directory)
-    module = importlib.import_module(split[0])
-    app: App = getattr(module, split[1])
-    if not isinstance(app, App):
-        raise RuntimeError(f"app instance is of unknown type {type(app)}")
-
     if command_args.asyncio:
-        run(connect_async(app, config, start_router=command_args.start_router))
+        connect_async(
+            command_args.app, config, start_router=command_args.start_router, directory=command_args.directory
+        )
     else:
-        connect_sync(app, config, start_router=command_args.start_router)
+        connect_sync(command_args.app, config, start_router=command_args.start_router, directory=command_args.directory)

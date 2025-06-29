@@ -25,6 +25,7 @@ from xconn._client.helpers import (
     assemble_event_details,
     validate_invocation_parameters,
     validate_event_parameters,
+    import_app,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -42,7 +43,8 @@ def _setup(app: App, session: Session):
         subscribe_sync(session, uri, func)
 
 
-def connect_sync(app: App, config: ClientConfig, start_router: bool = False):
+def connect_sync(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
+    app = import_app(app, directory)
     ws_url = urlparse(config.url)
 
     if start_router:
