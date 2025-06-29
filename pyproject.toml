@@ -38,7 +38,7 @@ publish = ["twine", "build"]
 dev = ["wampproto@git+https://github.com/xconnio/wampproto-python"]
 
 [project.scripts]
-"xcorn" = "xconn.__main__:main"
+"xcorn" = "xconn._client.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/xconnio/xconn-python"
