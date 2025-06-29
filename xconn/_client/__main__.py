@@ -21,7 +21,6 @@ def main():
 
     # misc
     parser.add_argument("--directory", type=str, default=".")
-    parser.add_argument("--asyncio", action="store_true", default=False)
     parser.add_argument("--start-router", action="store_true", default=False)
     parser.add_argument("--no-config", action="store_true", default=False)
     args = parser.parse_args()

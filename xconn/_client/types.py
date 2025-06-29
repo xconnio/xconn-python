@@ -20,7 +20,6 @@ class CommandArgs(BaseModel):
     url: str | None = None
     realm: str | None = None
     directory: str | None = None
-    asyncio: bool
     no_config: bool
     start_router: bool
 

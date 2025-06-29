@@ -33,7 +33,7 @@ from wampproto.auth import (
 )
 
 from xconn import Router, Server
-from xconn.app import App
+from xconn.app import App, ExecutionMode
 from xconn._client.types import ClientConfig
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result, Depends, CallDetails, RegisterOptions, SubscribeOptions, EventDetails
@@ -579,3 +579,18 @@ def import_app(app: str, directory: str = ".") -> App:
         raise RuntimeError(f"app instance is of unknown type {type(app)}")
 
     return app
+
+
+def connect(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
+    imported_app = import_app(app, directory)
+    if imported_app.execution_mode == ExecutionMode.ASYNC:
+        from xconn._client.async_ import _connect_async
+        from xconn.utils import run
+
+        run(_connect_async(imported_app, config, start_router=start_router))
+    elif imported_app.execution_mode == ExecutionMode.SYNC:
+        from xconn._client.sync import _connect_sync
+
+        _connect_sync(imported_app, config, start_router=start_router)
+    else:
+        raise RuntimeError(f"execution mode {imported_app.execution_mode} not supported yet")

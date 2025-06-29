@@ -4,8 +4,7 @@ import yaml
 
 from xconn._client import helpers
 from xconn.types import WebsocketConfig
-from xconn._client.sync import connect_sync
-from xconn._client.async_ import connect_async
+from xconn._client.helpers import connect
 from xconn._client.types import ClientConfig, CommandArgs
 
 
@@ -47,10 +46,4 @@ def handle_start(command_args: CommandArgs):
         helpers.validate_auth_inputs(command_args.private_key, command_args.ticket, command_args.secret)
 
     config.authmethod = helpers.select_authmethod(config)
-
-    if command_args.asyncio:
-        connect_async(
-            command_args.app, config, start_router=command_args.start_router, directory=command_args.directory
-        )
-    else:
-        connect_sync(command_args.app, config, start_router=command_args.start_router, directory=command_args.directory)
+    connect(command_args.app, config, start_router=command_args.start_router, directory=command_args.directory)

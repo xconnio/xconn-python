@@ -1,11 +1,18 @@
 import asyncio
 from typing import Callable, Type, Awaitable
 import inspect
+from enum import Enum
 
 from pydantic import BaseModel
 
 from xconn.types import RegisterOptions, SubscribeOptions
 from xconn.client import Session, AsyncSession
+
+
+class ExecutionMode(Enum):
+    ASYNC = "ASYNC"
+    SYNC = "SYNC"
+    UNIVERSAL = "UNIVERSAL"
 
 
 class IComponent:
@@ -130,6 +137,8 @@ class App(Component):
         self._startup_handler: Callable | Awaitable[None] | None = None
         self._schema_procedure: str | None = None
 
+        self._execution_mode: ExecutionMode = ExecutionMode.ASYNC
+
     def set_session(self, session: Session | AsyncSession):
         self._session = session
         for component in self._components:
@@ -148,6 +157,10 @@ class App(Component):
     @property
     def schema_procedure(self) -> str:
         return self._schema_procedure
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        return self._execution_mode
 
     def include_component(self, component: Component, prefix: str = "") -> None:
         if prefix is None or len(prefix) == 0:
@@ -170,3 +183,6 @@ class App(Component):
 
     def set_schema_procedure(self, uri: str):
         self._schema_procedure = uri
+
+    def set_execution_mode(self, mode: ExecutionMode):
+        self._execution_mode = mode

@@ -1,4 +1,5 @@
 from xconn import App, Component, register, subscribe
+from xconn.app import ExecutionMode
 from xconn.types import (
     Result,
     Event,
@@ -54,6 +55,7 @@ class Test(Component):
 class_component = Test()
 
 app = App()
+app.set_execution_mode(ExecutionMode.ASYNC)
 app.include_component(functional_component)
 app.include_component(class_component)
 
