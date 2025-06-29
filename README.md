@@ -29,7 +29,7 @@ async def my_topic():
 ```
 run the app with xcorn command (note: this automatically starts the debug router)
 ```shell
-(xconn-python) om26er@Home-PC:~$ xcorn sample:app --asyncio --start-router
+(xconn-python) om26er@Home-PC:~$ xcorn sample:app --start-router
 starting server on 127.0.0.1:8080
 connected realm1
 Registered procedure io.xconn.hello
