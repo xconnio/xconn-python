@@ -1,5 +1,5 @@
 run:
-	xapp start main_async:app --asyncio --start-router
+	xcorn main:app --realm realm1 --url ws://localhost:8080/ws --start-router
 
 run-sync:
-	xapp start main_sync:app --start-router
+	xcorn main_sync:app --realm realm1 --url ws://localhost:8080/ws --start-router

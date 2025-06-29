@@ -22,11 +22,13 @@ from xconn._client.helpers import (
     assemble_event_details,
     validate_invocation_parameters,
     validate_event_parameters,
+    import_app,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import AsyncClient
 from xconn.async_session import AsyncSession
 from xconn.types import Event, Invocation, Result, RegisterOptions, InvokeOptions
+from xconn.utils import run
 
 
 async def _setup(app: App, session: AsyncSession):
@@ -39,7 +41,7 @@ async def _setup(app: App, session: AsyncSession):
         await subscribe_async(session, uri, func)
 
 
-async def connect_async(app: App, config: ClientConfig, start_router: bool = False):
+async def _connect_async(app: App, config: ClientConfig, start_router: bool = False):
     if start_router:
         await start_server_async(config)
 
@@ -86,6 +88,12 @@ async def connect_async(app: App, config: ClientConfig, start_router: bool = Fal
         options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
         await session.register(app.schema_procedure, get_schema, options=options)
         print(f"serving schema at procedure {app.schema_procedure}")
+
+
+def connect_async(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
+    app = import_app(app, directory)
+    # FIXME: also support running from an existing event loop instead of always starting a new one.
+    run(_connect_async(app, config, start_router=start_router))
 
 
 @contextlib.asynccontextmanager

@@ -25,6 +25,7 @@ from xconn._client.helpers import (
     assemble_event_details,
     validate_invocation_parameters,
     validate_event_parameters,
+    import_app,
 )
 from xconn._client.types import ClientConfig
 from xconn.client import Client
@@ -42,7 +43,7 @@ def _setup(app: App, session: Session):
         subscribe_sync(session, uri, func)
 
 
-def connect_sync(app: App, config: ClientConfig, start_router: bool = False):
+def _connect_sync(app: App, config: ClientConfig, start_router: bool = False, directory: str = "."):
     ws_url = urlparse(config.url)
 
     if start_router:
@@ -92,6 +93,11 @@ def connect_sync(app: App, config: ClientConfig, start_router: bool = False):
         options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
         session.register(app.schema_procedure, get_schema, options=options)
         print(f"serving schema at procedure {app.schema_procedure}")
+
+
+def connect_sync(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
+    imported_app = import_app(app, directory)
+    _connect_sync(imported_app, config, start_router, directory)
 
 
 @contextlib.contextmanager

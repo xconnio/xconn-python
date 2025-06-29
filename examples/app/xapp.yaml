@@ -1,9 +1,0 @@
-authid: anonymous
-authmethod: anonymous
-realm: realm1
-secret: ''
-url: ws://127.0.0.1:8080/ws
-websocket_config:
-  open_timeout: 10
-  ping_interval: 20
-  ping_timeout: 20

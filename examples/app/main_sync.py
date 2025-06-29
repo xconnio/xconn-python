@@ -1,6 +1,7 @@
 from typing import Any, Generator
 
 from xconn import App, Component, register, subscribe
+from xconn.app import ExecutionMode
 from xconn.types import Result, Event, Invocation, Depends, CallDetails
 
 from models import InData, OutData
@@ -36,6 +37,7 @@ class Test(Component):
 class_component = Test()
 
 app = App()
+app.set_execution_mode(ExecutionMode.SYNC)
 app.include_component(functional_component)
 app.include_component(class_component)
 
