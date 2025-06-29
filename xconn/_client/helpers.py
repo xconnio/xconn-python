@@ -292,10 +292,10 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
 
 def validate_invocation_parameters(invocation: Invocation, meta: ProcedureMetadata):
     msg = ""
-    if len(invocation.args) > len(meta.request_args):
+    if invocation.args is not None and len(invocation.args) > len(meta.request_args):
         msg += "expected {} arguments, got {}".format(len(meta.request_args), len(invocation.args))
 
-    if len(invocation.kwargs) > len(meta.request_kwargs):
+    if invocation.kwargs is not None and len(invocation.kwargs) > len(meta.request_kwargs):
         if msg != "":
             msg += ", "
 
@@ -307,10 +307,10 @@ def validate_invocation_parameters(invocation: Invocation, meta: ProcedureMetada
 
 def validate_event_parameters(event: Event, meta: EventMetadata):
     msg = ""
-    if len(event.args) > len(meta.request_args):
+    if event.args is not None and len(event.args) > len(meta.request_args):
         msg += "expected {} arguments, got {}".format(len(meta.request_args), len(event.args))
 
-    if len(event.kwargs) > len(meta.request_kwargs):
+    if event.kwargs is not None and len(event.kwargs) > len(meta.request_kwargs):
         if msg != "":
             msg += ", "
 
