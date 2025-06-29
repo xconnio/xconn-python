@@ -22,7 +22,7 @@ def main():
     # misc
     parser.add_argument("--directory", type=str, default=".")
     parser.add_argument("--start-router", action="store_true", default=False)
-    parser.add_argument("--no-config", action="store_true", default=False)
+    parser.add_argument("--no-config", action="store_true", default=True)
     args = parser.parse_args()
 
     handle_start(CommandArgs(**vars(args)))
