@@ -28,7 +28,7 @@ jobs:
           cd xconn-aat-setup
           make build-docker-xconn
           make build-docker-crossbar
-          docker compose up -d
+          docker compose up
           sudo snap install wick --classic
           timeout 30 bash -c 'until wick --url ws://localhost:8081/ws publish test; do sleep 1; done'
 
