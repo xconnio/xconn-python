@@ -1,4 +1,5 @@
 import contextlib
+import os
 import time
 import socket
 import asyncio
@@ -22,7 +23,9 @@ from typing import (
 )
 from urllib.parse import urlparse
 
+import yaml
 from aiohttp import web
+from dotenv import load_dotenv
 from pydantic import BaseModel, create_model, ValidationError
 from wampproto.auth import (
     WAMPCRAAuthenticator,
@@ -34,7 +37,7 @@ from wampproto.auth import (
 
 from xconn import Router, Server
 from xconn.app import App, ExecutionMode
-from xconn._client.types import ClientConfig
+from xconn._client.types import ClientConfig, CommandArgs
 from xconn.exception import ApplicationError
 from xconn.types import Event, Invocation, Result, Depends, CallDetails, RegisterOptions, SubscribeOptions, EventDetails
 
@@ -452,9 +455,6 @@ def create_app(docs: list[dict], endpoint: str):
 
 def select_authenticator(config: ClientConfig) -> IClientAuthenticator:
     if config.authmethod == "cryptosign" or config.authmethod == "wampcra" or config.authmethod == "ticket":
-        if config.secret == "":
-            raise RuntimeError("secret must not be empty")
-
         if config.authmethod == "wampcra":
             auth = WAMPCRAAuthenticator(config.authid, config.secret)
         elif config.authmethod == "ticket":
@@ -486,13 +486,18 @@ def is_non_empty(value):
     return value is not None and value != ""
 
 
-def validate_auth_inputs(private_key: str | None, ticket: str | None, secret: str | None) -> None:
-    if is_non_empty(private_key) and is_non_empty(ticket):
+def validate_auth_inputs(config: ClientConfig) -> None:
+    if is_non_empty(config.private_key) and is_non_empty(config.ticket):
         raise ValueError("provide only one of private key, ticket or secret")
-    elif is_non_empty(ticket) and is_non_empty(secret):
+    elif is_non_empty(config.ticket) and is_non_empty(config.secret):
         raise ValueError("provide only one of private key, ticket or secret")
-    elif is_non_empty(private_key) and is_non_empty(secret):
+    elif is_non_empty(config.private_key) and is_non_empty(config.secret):
         raise ValueError("provide only one of private key, ticket or secret")
+
+    if config.authid is None and any(
+        is_non_empty(value) for value in (config.private_key, config.ticket, config.secret)
+    ):
+        raise ValueError("authid is required with any of private key, ticket or secret")
 
 
 def select_authmethod(config: ClientConfig) -> str:
@@ -594,3 +599,74 @@ def connect(app: str, config: ClientConfig, start_router: bool = False, director
         _connect_sync(imported_app, config, start_router=start_router)
     else:
         raise RuntimeError(f"execution mode {imported_app.execution_mode} not supported yet")
+
+
+def load_config_from_env(args: CommandArgs) -> ClientConfig:
+    if args.url is not None and args.url != "":
+        url = args.url
+    else:
+        url = os.environ.get("XCORN_URL", None)
+        if url is None or url == "":
+            print("XCORN_URL missing in environment variable")
+            exit(1)
+
+    if args.realm is not None and args.realm != "":
+        realm = args.realm
+    else:
+        realm = os.environ.get("XCORN_REALM", None)
+        if realm is None or realm == "":
+            print("XCORN_REALM missing in environment variable")
+            exit(1)
+
+    return ClientConfig(
+        url=url,
+        realm=realm,
+        authid=os.environ.get("XCORN_AUTHID", args.authid),
+        secret=os.environ.get("XCORN_SECRET", args.secret),
+        ticket=os.environ.get("XCORN_TICKET", args.ticket),
+        private_key=os.environ.get("XCORN_PRIVATE_KEY", args.private_key),
+    )
+
+
+def load_config_from_dot_env(args: CommandArgs):
+    if args.config_file is not None and args.config_file != "":
+        load_dotenv(args.config_file)
+    elif os.path.exists(os.path.join(os.getcwd(), ".env")):
+        load_dotenv()
+    else:
+        print(".env file doesn't exist. You may use --config-file flag to specify a env file.")
+        exit(1)
+
+    return load_config_from_env(args)
+
+
+def load_config_from_yaml(args: CommandArgs) -> ClientConfig:
+    with open(args.config_file) as f:
+        config_raw = yaml.safe_load(f)
+
+    for name, value in args.model_dump().items():
+        if value is not None:
+            config_raw[name] = value
+
+    return ClientConfig(**config_raw)
+
+
+def load_config_from_file(args: CommandArgs) -> ClientConfig:
+    if args.config_file is not None:
+        if not os.path.exists(args.config_file):
+            raise FileNotFoundError(args.config_file)
+
+    try:
+        return load_config_from_yaml(args)
+    except Exception:
+        return load_config_from_dot_env(args)
+
+
+def update_config_from_cli(config: ClientConfig, command_args: CommandArgs) -> ClientConfig:
+    command_args_dict = command_args.model_dump(exclude_none=True)
+
+    for key, value in command_args_dict.items():
+        if hasattr(config, key):
+            setattr(config, key, value)
+
+    return config
