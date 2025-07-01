@@ -604,21 +604,21 @@ def connect(app: str, config: ClientConfig, start_router: bool = False, director
 def load_config_from_env(filepath: str | None = None) -> ClientConfig:
     load_dotenv(filepath)
 
-    url = os.environ.get("XAPP_URL", None)
+    url = os.environ.get("XCORN_URL", None)
     if url is None or url == "":
-        raise RuntimeError("XAPP_URL missing in environment variable")
+        raise RuntimeError("XCORN_URL missing in environment variable")
 
-    realm = os.environ.get("XCONN_REALM", None)
+    realm = os.environ.get("XCORN_REALM", None)
     if realm is None or realm == "":
-        raise RuntimeError("XCONN_REALM missing in environment variable")
+        raise RuntimeError("XCORN_REALM missing in environment variable")
 
     return ClientConfig(
         url=url,
         realm=realm,
-        authid=os.environ.get("XCONN_AUTHID", None),
-        secret=os.environ.get("XCONN_SECRET", None),
-        ticket=os.environ.get("XCONN_TICKET", None),
-        private_key=os.environ.get("XCONN_PRIVATE_KEY", None),
+        authid=os.environ.get("XCORN_AUTHID", None),
+        secret=os.environ.get("XCORN_SECRET", None),
+        ticket=os.environ.get("XCORN_TICKET", None),
+        private_key=os.environ.get("XCORN_PRIVATE_KEY", None),
     )
 
 
