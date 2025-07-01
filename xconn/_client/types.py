@@ -28,7 +28,7 @@ class CommandArgs(BaseModel):
     url: str | None = None
     realm: str | None = None
     directory: str | None = None
-    config_source: str | None = None
+    config_source: str = ConfigSource.cli
     config_file: str | None = None
     start_router: bool
 

@@ -1,4 +1,4 @@
-import os
+from pydantic import ValidationError
 
 from xconn._client import helpers
 from xconn.types import WebsocketConfig
@@ -8,30 +8,37 @@ from xconn._client.types import ClientConfig, CommandArgs, ConfigSource
 
 def handle_start(command_args: CommandArgs):
     if command_args.config_source == ConfigSource.cli:
-        config = ClientConfig(
-            url=command_args.url,
-            realm=command_args.realm,
-            authid=command_args.authid,
-            secret=command_args.secret,
-            ticket=command_args.ticket,
-            private_key=command_args.private_key,
-        )
+        try:
+            config = ClientConfig(
+                url=command_args.url,
+                realm=command_args.realm,
+                authid=command_args.authid,
+                secret=command_args.secret,
+                ticket=command_args.ticket,
+                private_key=command_args.private_key,
+            )
+        except ValidationError as e:
+            print("Invalid input:")
+            for error in e.errors():
+                loc = " -> ".join(map(str, error['loc']))
+                msg = error['msg']
+                print(f" - {loc}: {msg}")
+
+            exit(1)
+
         config.websocket_config = WebsocketConfig(
             command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
         )
     elif command_args.config_source == ConfigSource.env:
         config = helpers.load_config_from_env(command_args.config_file)
+        # Now override config if something was provided explicitly from command line
+        config = helpers.update_config_from_cli(config, command_args)
     elif command_args.config_source == ConfigSource.file:
         config = helpers.load_config_from_file(command_args.config_file)
+        # Now override config if something was provided explicitly from command line
+        config = helpers.update_config_from_cli(config, command_args)
     else:
-        config_path = os.path.join(command_args.directory, "xcorn.yaml")
-        if not os.path.exists(config_path):
-            print("xcorn.yaml not found, initialize a client first")
-            exit(1)
-
-        config = helpers.load_config_from_yaml(config_path)
-
-    config = helpers.update_config_from_cli(config, command_args)
+        raise RuntimeError(f"Unknown config_source: {command_args.config_source}")
 
     helpers.validate_auth_inputs(config)
     config.authmethod = helpers.select_authmethod(config)
