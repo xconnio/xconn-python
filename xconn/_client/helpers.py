@@ -601,42 +601,65 @@ def connect(app: str, config: ClientConfig, start_router: bool = False, director
         raise RuntimeError(f"execution mode {imported_app.execution_mode} not supported yet")
 
 
-def load_config_from_env(filepath: str | None = None) -> ClientConfig:
-    load_dotenv(filepath)
+def load_config_from_env(args: CommandArgs) -> ClientConfig:
+    if args.url is not None and args.url != "":
+        url = args.url
+    else:
+        url = os.environ.get("XCORN_URL", None)
+        if url is None or url == "":
+            print("XCORN_URL missing in environment variable")
+            exit(1)
 
-    url = os.environ.get("XCORN_URL", None)
-    if url is None or url == "":
-        raise RuntimeError("XCORN_URL missing in environment variable")
-
-    realm = os.environ.get("XCORN_REALM", None)
-    if realm is None or realm == "":
-        raise RuntimeError("XCORN_REALM missing in environment variable")
+    if args.realm is not None and args.realm != "":
+        realm = args.realm
+    else:
+        realm = os.environ.get("XCORN_REALM", None)
+        if realm is None or realm == "":
+            print("XCORN_REALM missing in environment variable")
+            exit(1)
 
     return ClientConfig(
         url=url,
         realm=realm,
-        authid=os.environ.get("XCORN_AUTHID", None),
-        secret=os.environ.get("XCORN_SECRET", None),
-        ticket=os.environ.get("XCORN_TICKET", None),
-        private_key=os.environ.get("XCORN_PRIVATE_KEY", None),
+        authid=os.environ.get("XCORN_AUTHID", args.authid),
+        secret=os.environ.get("XCORN_SECRET", args.secret),
+        ticket=os.environ.get("XCORN_TICKET", args.ticket),
+        private_key=os.environ.get("XCORN_PRIVATE_KEY", args.private_key),
     )
 
 
-def load_config_from_yaml(config_path: str) -> ClientConfig:
-    with open(config_path) as f:
+def load_config_from_dot_env(args: CommandArgs):
+    if args.config_file is not None and args.config_file != "":
+        load_dotenv(args.config_file)
+    elif os.path.exists(os.path.join(os.getcwd(), ".env")):
+        load_dotenv()
+    else:
+        print(".env file doesn't exist. You may use --config-file flag to specify a env file.")
+        exit(1)
+
+    return load_config_from_env(args)
+
+
+def load_config_from_yaml(args: CommandArgs) -> ClientConfig:
+    with open(args.config_file) as f:
         config_raw = yaml.safe_load(f)
+
+    for name, value in args.model_dump().items():
+        if value is not None:
+            config_raw[name] = value
 
     return ClientConfig(**config_raw)
 
 
-def load_config_from_file(config_path: str) -> ClientConfig:
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(config_path)
+def load_config_from_file(args: CommandArgs) -> ClientConfig:
+    if args.config_file is not None:
+        if not os.path.exists(args.config_file):
+            raise FileNotFoundError(args.config_file)
 
     try:
-        return load_config_from_yaml(config_path)
+        return load_config_from_yaml(args)
     except Exception:
-        return load_config_from_env(config_path)
+        return load_config_from_dot_env(args)
 
 
 def update_config_from_cli(config: ClientConfig, command_args: CommandArgs) -> ClientConfig:

@@ -20,8 +20,8 @@ def handle_start(command_args: CommandArgs):
         except ValidationError as e:
             print("Invalid input:")
             for error in e.errors():
-                loc = " -> ".join(map(str, error['loc']))
-                msg = error['msg']
+                loc = " -> ".join(map(str, error["loc"]))
+                msg = error["msg"]
                 print(f" - {loc}: {msg}")
 
             exit(1)
@@ -30,11 +30,11 @@ def handle_start(command_args: CommandArgs):
             command_args.open_timeout, command_args.ping_interval, command_args.ping_timeout
         )
     elif command_args.config_source == ConfigSource.env:
-        config = helpers.load_config_from_env(command_args.config_file)
+        config = helpers.load_config_from_env(command_args)
         # Now override config if something was provided explicitly from command line
         config = helpers.update_config_from_cli(config, command_args)
     elif command_args.config_source == ConfigSource.file:
-        config = helpers.load_config_from_file(command_args.config_file)
+        config = helpers.load_config_from_file(command_args)
         # Now override config if something was provided explicitly from command line
         config = helpers.update_config_from_cli(config, command_args)
     else:
