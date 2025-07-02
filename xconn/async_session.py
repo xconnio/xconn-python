@@ -10,41 +10,6 @@ from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
-def register(
-    wamp_session: session.WAMPSession,
-    id_generator: idgen.SessionScopeIDGenerator,
-    register_requests: dict[int, types.RegisterRequest],
-    procedure: str,
-    invocation_handler: Callable | Callable[[types.Invocation], types.Result],
-    options: dict | types.RegisterOptions | None = None,
-) -> types.RegisterResponse:
-    register_msg = messages.Register(messages.RegisterFields(id_generator.next(), procedure, options=options))
-    data = wamp_session.send_message(register_msg)
-
-    f: Future[types.Registration] = Future()
-    register_requests[register_msg.request_id] = types.RegisterRequest(f, invocation_handler)
-
-    return types.RegisterResponse(data, f)
-
-
-def call(
-    wamp_session: session.WAMPSession,
-    id_generator: idgen.SessionScopeIDGenerator,
-    call_requests: dict[int, Future[types.Result]],
-    procedure: str,
-    *args,
-    **kwargs,
-) -> types.CallResponse:
-    options = kwargs.pop("options", None)
-    call_msg = messages.Call(messages.CallFields(id_generator.next(), procedure, args, kwargs, options=options))
-    data = wamp_session.send_message(call_msg)
-
-    f = Future()
-    call_requests[call_msg.request_id] = f
-
-    return types.CallResponse(data, f)
-
-
 class AsyncSession:
     def __init__(self, base_session: types.IAsyncBaseSession):
         # RPC data structures
@@ -188,12 +153,14 @@ class AsyncSession:
                 f"function {invocation_handler.__name__} for procedure '{procedure}' must be a coroutine"
             )
 
-        register_response = register(
-            self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
-        )
-        await self.base_session.send(register_response.data)
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
+        data = self.session.send_message(register)
 
-        return await register_response.future
+        f: Future[types.Registration] = Future()
+        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
+        await self.base_session.send(data)
+
+        return await f
 
     async def unregister(self, reg: types.Registration):
         unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
@@ -206,11 +173,16 @@ class AsyncSession:
         return await f
 
     async def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
+        options = kwargs.pop("options", None)
+        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
+        data = self.session.send_message(call)
 
-        await self.base_session.send(call_response.data)
+        f = Future()
+        self.call_requests[call.request_id] = f
 
-        return await call_response.future
+        await self.base_session.send(data)
+
+        return await f
 
     async def subscribe(
         self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None

@@ -9,41 +9,6 @@ from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
-def register(
-    wamp_session: session.WAMPSession,
-    id_generator: idgen.SessionScopeIDGenerator,
-    register_requests: dict[int, types.RegisterRequest],
-    procedure: str,
-    invocation_handler: Callable | Callable[[types.Invocation], types.Result],
-    options: dict | types.RegisterOptions | None = None,
-) -> types.RegisterResponse:
-    register_msg = messages.Register(messages.RegisterFields(id_generator.next(), procedure, options=options))
-    data = wamp_session.send_message(register_msg)
-
-    f: Future[types.Registration] = Future()
-    register_requests[register_msg.request_id] = types.RegisterRequest(f, invocation_handler)
-
-    return types.RegisterResponse(data, f)
-
-
-def call(
-    wamp_session: session.WAMPSession,
-    id_generator: idgen.SessionScopeIDGenerator,
-    call_requests: dict[int, Future[types.Result]],
-    procedure: str,
-    *args,
-    **kwargs,
-) -> types.CallResponse:
-    options = kwargs.pop("options", None)
-    call_msg = messages.Call(messages.CallFields(id_generator.next(), procedure, args, kwargs, options=options))
-    data = wamp_session.send_message(call_msg)
-
-    f = Future()
-    call_requests[call_msg.request_id] = f
-
-    return types.CallResponse(data, f)
-
-
 class Session:
     def __init__(self, base_session: types.BaseSession):
         # RPC data structures
@@ -173,10 +138,15 @@ class Session:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        call_response = call(self.session, self.idgen, self.call_requests, procedure, *args, **kwargs)
-        self.base_session.send(call_response.data)
+        options = kwargs.pop("options", None)
+        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
+        data = self.session.send_message(call)
 
-        return call_response.future.result()
+        f = Future()
+        self.call_requests[call.request_id] = f
+        self.base_session.send(data)
+
+        return f.result()
 
     def register(
         self,
@@ -184,12 +154,15 @@ class Session:
         invocation_handler: Callable | Callable[[types.Invocation], types.Result],
         options: dict = None,
     ) -> types.Registration:
-        register_response = register(
-            self.session, self.idgen, self.register_requests, procedure, invocation_handler, options
-        )
-        self.base_session.send(register_response.data)
+        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
+        data = self.session.send_message(register)
 
-        return register_response.future.result()
+        f: Future[types.Registration] = Future()
+        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
+
+        self.base_session.send(data)
+
+        return f.result()
 
     def unregister(self, reg: types.Registration):
         unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
