@@ -23,6 +23,7 @@ def main():
     # misc
     parser.add_argument("--directory", type=str, default=".")
     parser.add_argument("--start-router", action="store_true", default=False)
+    parser.add_argument("--reload", action="store_true", default=False)
     parser.add_argument(
         "--config-source", type=str, choices=[e.value for e in ConfigSource], default=ConfigSource.cli.value
     )

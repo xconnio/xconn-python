@@ -1,8 +1,13 @@
+import os
+import sys
+import threading
+
 from pydantic import ValidationError
 
 from xconn._client import helpers
 from xconn.types import WebsocketConfig
 from xconn._client.helpers import connect
+from xconn._client.watcher import start_file_watcher
 from xconn._client.types import ClientConfig, CommandArgs, ConfigSource
 
 
@@ -42,4 +47,13 @@ def handle_start(command_args: CommandArgs):
 
     helpers.validate_auth_inputs(config)
     config.authmethod = helpers.select_authmethod(config)
+
+    if command_args.reload:
+
+        def restart():
+            # Restart process due to file changes
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+
+        threading.Thread(target=start_file_watcher, args=(restart,), daemon=True).start()
+
     connect(command_args.app, config, start_router=command_args.start_router, directory=command_args.directory)
