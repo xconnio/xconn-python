@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
+from dataclasses import dataclass
 
 from wampproto import messages, idgen, session, uris
 
@@ -9,17 +12,67 @@ from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error
 
 
+@dataclass
+class RegisterRequest:
+    future: Future[Registration]
+    endpoint: Callable | Callable[[types.Invocation], types.Result]
+
+
+class Registration:
+    def __init__(self, registration_id: int, session: Session):
+        self.registration_id = registration_id
+        self.session = session
+
+    def unregister(self) -> None:
+        if not self.session.base_session.transport.is_connected():
+            raise Exception("cannot unregister procedure: session not established")
+
+        unregister = messages.Unregister(messages.UnregisterFields(self.session.idgen.next(), self.registration_id))
+        data = self.session.session.send_message(unregister)
+
+        f: Future = Future()
+        self.session.unregister_requests[unregister.request_id] = types.UnregisterRequest(f, self.registration_id)
+        self.session.base_session.send(data)
+
+        f.result()
+
+
+@dataclass
+class SubscribeRequest:
+    future: Future[Subscription]
+    endpoint: Callable[[types.Event], None]
+
+
+class Subscription:
+    def __init__(self, subscription_id: int, session: Session):
+        self.subscription_id = subscription_id
+        self.session = session
+
+    def unsubscribe(self) -> None:
+        if not self.session.base_session.transport.is_connected():
+            raise Exception("cannot unsubscribe topic: session not established")
+
+        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.session.idgen.next(), self.subscription_id))
+        data = self.session.session.send_message(unsubscribe)
+
+        f: Future = Future()
+        self.session.unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, self.subscription_id)
+        self.session.base_session.send(data)
+
+        f.result()
+
+
 class Session:
     def __init__(self, base_session: types.BaseSession):
         # RPC data structures
         self.call_requests: dict[int, Future[types.Result]] = {}
-        self.register_requests: dict[int, types.RegisterRequest] = {}
+        self.register_requests: dict[int, RegisterRequest] = {}
         self.registrations: dict[int, Callable[[types.Invocation], types.Result]] = {}
         self.unregister_requests: dict[int, types.UnregisterRequest] = {}
 
         # PubSub data structures
         self.publish_requests: dict[int, Future[None]] = {}
-        self.subscribe_requests: dict[int, types.SubscribeRequest] = {}
+        self.subscribe_requests: dict[int, SubscribeRequest] = {}
         self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
         self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
 
@@ -54,7 +107,7 @@ class Session:
         if isinstance(msg, messages.Registered):
             request = self.register_requests.pop(msg.request_id)
             self.registrations[msg.registration_id] = request.endpoint
-            request.future.set_result(types.Registration(msg.registration_id))
+            request.future.set_result(Registration(msg.registration_id, self))
         elif isinstance(msg, messages.Unregistered):
             request = self.unregister_requests.pop(msg.request_id)
             del self.registrations[request.registration_id]
@@ -96,7 +149,7 @@ class Session:
         elif isinstance(msg, messages.Subscribed):
             request = self.subscribe_requests.pop(msg.request_id)
             self.subscriptions[msg.subscription_id] = request.endpoint
-            request.future.set_result(types.Subscription(msg.subscription_id))
+            request.future.set_result(Subscription(msg.subscription_id, self))
         elif isinstance(msg, messages.Unsubscribed):
             request = self.unsubscribe_requests.pop(msg.request_id)
             del self.subscriptions[request.subscription_id]
@@ -153,48 +206,26 @@ class Session:
         procedure: str,
         invocation_handler: Callable | Callable[[types.Invocation], types.Result],
         options: dict = None,
-    ) -> types.Registration:
+    ) -> Registration:
         register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
         data = self.session.send_message(register)
 
-        f: Future[types.Registration] = Future()
-        self.register_requests[register.request_id] = types.RegisterRequest(f, invocation_handler)
+        f: Future[Registration] = Future()
+        self.register_requests[register.request_id] = RegisterRequest(f, invocation_handler)
 
         self.base_session.send(data)
 
         return f.result()
 
-    def unregister(self, reg: types.Registration):
-        unregister = messages.Unregister(messages.UnregisterFields(self.idgen.next(), reg.registration_id))
-        data = self.session.send_message(unregister)
-
-        f: Future = Future()
-        self.unregister_requests[unregister.request_id] = types.UnregisterRequest(f, reg.registration_id)
-        self.base_session.send(data)
-
-        f.result()
-
-    def subscribe(
-        self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None
-    ) -> types.Subscription:
+    def subscribe(self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None) -> Subscription:
         subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
         data = self.session.send_message(subscribe)
 
-        f: Future[types.Subscription] = Future()
-        self.subscribe_requests[subscribe.request_id] = types.SubscribeRequest(f, event_handler)
+        f: Future[Subscription] = Future()
+        self.subscribe_requests[subscribe.request_id] = SubscribeRequest(f, event_handler)
         self.base_session.send(data)
 
         return f.result()
-
-    def unsubscribe(self, sub: types.Subscription):
-        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.idgen.next(), sub.subscription_id))
-        data = self.session.send_message(unsubscribe)
-
-        f: Future = Future()
-        self.unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, sub.subscription_id)
-        self.base_session.send(data)
-
-        f.result()
 
     def publish(self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None):
         publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
