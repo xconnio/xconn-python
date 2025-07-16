@@ -1,7 +1,7 @@
 import pytest
 from wampproto import auth, serializers
 
-from xconn.client import Client, AsyncClient
+from xconn import Client, AsyncClient
 from xconn.types import Result, Event, Invocation
 
 XCONN_URL = "ws://localhost:8080/ws"
