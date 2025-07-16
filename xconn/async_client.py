@@ -68,3 +68,21 @@ async def connect(
 
 async def connect_anonymous(uri: str, realm: str) -> AsyncSession:
     return await connect(uri, realm)
+
+
+async def connect_ticket(uri: str, realm: str, authid: str, ticket: str) -> AsyncSession:
+    ticket_authenticator = auth.TicketAuthenticator(authid, ticket)
+
+    return await connect(uri, realm, ticket_authenticator)
+
+
+async def connect_wampcra(uri: str, realm: str, authid: str, secret: str) -> AsyncSession:
+    wampcra_authenticator = auth.WAMPCRAAuthenticator(authid, secret)
+
+    return await connect(uri, realm, wampcra_authenticator)
+
+
+async def connect_cryptosign(uri: str, realm: str, authid: str, private_key: str) -> AsyncSession:
+    cryptosign_authenticator = auth.CryptoSignAuthenticator(authid, private_key)
+
+    return await connect(uri, realm, cryptosign_authenticator)
