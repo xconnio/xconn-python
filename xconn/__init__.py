@@ -1,5 +1,6 @@
 from xconn.app import App, Component, register, subscribe
-from xconn.client import Client, AsyncClient
+from xconn.client import Client
+from xconn.async_client import AsyncClient
 from xconn.router import Router
 from xconn.server import Server
 from xconn.utils import run

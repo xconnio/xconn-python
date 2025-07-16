@@ -4,7 +4,7 @@ import asyncio
 import inspect
 from typing import AsyncGenerator
 
-from xconn import App
+from xconn import App, AsyncClient
 from xconn._client.helpers import (
     _validate_procedure_function,
     _validate_topic_function,
@@ -25,7 +25,6 @@ from xconn._client.helpers import (
     import_app,
 )
 from xconn._client.types import ClientConfig
-from xconn.client import AsyncClient
 from xconn.async_session import AsyncSession
 from xconn.types import Event, Invocation, Result, RegisterOptions, InvokeOptions
 from xconn.utils import run

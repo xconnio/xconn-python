@@ -6,7 +6,8 @@ from enum import Enum
 from pydantic import BaseModel
 
 from xconn.types import RegisterOptions, SubscribeOptions
-from xconn.client import Session, AsyncSession
+from xconn.client import Session
+from xconn.async_session import AsyncSession
 
 
 class ExecutionMode(Enum):
