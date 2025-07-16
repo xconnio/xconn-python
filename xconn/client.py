@@ -68,3 +68,21 @@ def connect(
 
 def connect_anonymous(uri: str, realm: str) -> Session:
     return connect(uri, realm)
+
+
+def connect_ticket(uri: str, realm: str, authid: str, ticket: str) -> Session:
+    ticket_authenticator = auth.TicketAuthenticator(authid, ticket)
+
+    return connect(uri, realm, ticket_authenticator)
+
+
+def connect_wampcra(uri: str, realm: str, authid: str, secret: str) -> Session:
+    wampcra_authenticator = auth.WAMPCRAAuthenticator(authid, secret)
+
+    return connect(uri, realm, wampcra_authenticator)
+
+
+def connect_cryptosign(uri: str, realm: str, authid: str, private_key: str) -> Session:
+    cryptosign_authenticator = auth.CryptoSignAuthenticator(authid, private_key)
+
+    return connect(uri, realm, cryptosign_authenticator)
