@@ -31,6 +31,7 @@ class CommandArgs(BaseModel):
     config_source: str = ConfigSource.cli
     config_file: str | None = None
     start_router: bool
+    reload: bool
 
     open_timeout: int | None = None
     ping_interval: int | None = None
