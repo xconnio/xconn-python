@@ -14,31 +14,9 @@ from wampproto import messages, joiner, serializers
 
 
 @dataclass
-class Registration:
-    registration_id: int
-
-
-@dataclass
-class RegisterRequest:
-    future: Future[Registration]
-    endpoint: Callable | Callable[[Invocation], Result] | Callable[[Invocation], Awaitable[Result]]
-
-
-@dataclass
 class UnregisterRequest:
     future: Future
     registration_id: int
-
-
-@dataclass
-class Subscription:
-    subscription_id: int
-
-
-@dataclass
-class SubscribeRequest:
-    future: Future[Subscription]
-    endpoint: Callable[[Event], None] | Callable[[Event], Awaitable[None]]
 
 
 @dataclass
@@ -66,18 +44,6 @@ class Event:
     args: list | None
     kwargs: dict | None
     details: dict | None
-
-
-@dataclass
-class RegisterResponse:
-    data: bytes
-    future: Future[Registration]
-
-
-@dataclass
-class CallResponse:
-    data: bytes
-    future: Future
 
 
 @dataclass

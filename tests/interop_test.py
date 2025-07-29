@@ -50,7 +50,7 @@ def test_pubsub(url: str, serializer: serializers.Serializer, authenticator: aut
     sub = session.subscribe("io.xconn.test", event_handler, options={"acknowledge": True})
     session.publish("io.xconn.test", args)
 
-    session.unsubscribe(sub)
+    sub.unsubscribe()
 
     session.leave()
 
@@ -70,7 +70,7 @@ def test_rpc(url: str, serializer: serializers.Serializer, authenticator: auth.I
     result = session.call("io.xconn.test", *args)
     assert result.args == args
 
-    session.unregister(reg)
+    reg.unregister()
 
     session.leave()
 
@@ -89,7 +89,7 @@ async def test_pubsub_async(url: str, serializer: serializers.Serializer, authen
     sub = await session.subscribe("io.xconn.test", event_handler, options={"acknowledge": True})
     await session.publish("io.xconn.test", args)
 
-    await session.unsubscribe(sub)
+    await sub.unsubscribe()
 
     await session.leave()
 
@@ -131,7 +131,7 @@ async def test_rpc_async(url: str, serializer: serializers.Serializer, authentic
     result = await session.call("io.xconn.test", *args)
     assert result.args == args
 
-    await session.unregister(reg)
+    await reg.unregister()
 
     await session.leave()
 
