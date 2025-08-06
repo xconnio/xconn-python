@@ -23,7 +23,7 @@ def handle_sigint(signum, frame):
     print("SIGINT received. Cleaning up...")
 
     # unsubscribe from topic
-    subscriber.unsubscribe(subscription)
+    subscription.unsubscribe()
 
     # close connection to the server
     subscriber.leave()

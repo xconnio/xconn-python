@@ -9,7 +9,7 @@ async def main() -> None:
     client = AsyncClient()
     subscriber = await client.connect("ws://localhost:8080/ws", "realm1")
 
-    def event_handler(event: Event):
+    async def event_handler(event: Event):
         print(f"Received Event: args={event.args}, kwargs={event.kwargs}, details={event.details}")
 
     await subscriber.subscribe(test_topic, event_handler)

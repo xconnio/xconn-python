@@ -1,11 +1,11 @@
-from xconn.types import Result
 from xconn import AsyncClient, run
+from xconn.types import Result, Invocation
 
 
-def sum_handler(*args, **kwargs) -> Result:
-    print(f"Received args={args}, kwargs={kwargs}")
+async def sum_handler(inv: Invocation) -> Result:
+    print(f"Received args={inv.args}, kwargs={inv.kwargs}")
     total_sum = 0
-    for arg in args:
+    for arg in inv.args:
         total_sum += arg
 
     return Result(args=[total_sum])
@@ -22,18 +22,18 @@ async def main() -> None:
     callee = await client.connect("ws://localhost:8080/ws", "realm1")
 
     # function to handle received Invocation for "io.xconn.echo"
-    def echo(*args, **kwargs) -> Result:
-        print(f"Received args={args}, kwargs={kwargs}")
-        return Result(args, kwargs)
+    async def echo(inv: Invocation) -> Result:
+        print(f"Received args={inv.args}, kwargs={inv.kwargs}")
+        return Result(inv.args, inv.kwargs)
 
     # function to handle received Invocation for "io.xconn.async.echo"
-    async def async_echo(*args, **kwargs) -> Result:
-        print(f"Received args={args}, kwargs={kwargs}")
-        return Result(args, kwargs)
+    async def async_echo(inv: Invocation) -> Result:
+        print(f"Received args={inv.args}, kwargs={inv.kwargs}")
+        return Result(inv.args, inv.kwargs)
 
     # function to handle received Invocation for "io.xconn.result"
-    def no_result_handler(*args, **kwargs):
-        print(f"Received args={args}, kwargs={kwargs}")
+    async def no_result_handler(inv: Invocation):
+        print(f"Received args={inv.args}, kwargs={inv.kwargs}")
 
     await callee.register(test_procedure_echo, echo)
     print(f"Registered procedure '{test_procedure_echo}'")
