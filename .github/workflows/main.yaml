@@ -26,7 +26,7 @@ jobs:
         run: |
           git clone https://github.com/xconnio/xconn-aat-setup.git
           cd xconn-aat-setup
-          make build-docker-xconn
+          make build-docker-nxt
           make build-docker-crossbar
           docker compose up -d
           sudo snap install wick --classic
