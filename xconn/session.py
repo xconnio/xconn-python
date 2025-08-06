@@ -245,9 +245,10 @@ class Session:
         goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_REALM))
         data = self.session.send_message(goodbye)
         self.base_session.send(data)
-        self.base_session.close()
-
-        return self.goodbye_request.result(timeout=10)
+        try:
+            self.goodbye_request.result(timeout=10)
+        finally:
+            self.base_session.close()
 
     def ping(self, timeout: int = 10) -> float:
         return self.base_session.transport.ping(timeout)

@@ -3,13 +3,10 @@ from wampproto import auth, serializers
 
 from xconn import Client, AsyncClient
 from xconn.types import Result, Event, Invocation
+from tests.utils import ROUTER_URL, REALM
 
-XCONN_URL = "ws://localhost:8080/ws"
-CROSSBAR_URL = "ws://localhost:8081/ws"
-REALM = "realm1"
 PROCEDURE_ADD = "io.xconn.backend.add2"
 
-ROUTER_URL = [XCONN_URL, CROSSBAR_URL]
 SERIALIZERS = [serializers.JSONSerializer(), serializers.CBORSerializer(), serializers.MsgPackSerializer()]
 AUTHENTICATORS = [
     auth.AnonymousAuthenticator(""),
