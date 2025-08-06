@@ -4,6 +4,7 @@ from xconn.async_client import AsyncClient
 from xconn.router import Router
 from xconn.server import Server
 from xconn.utils import run
+from xconn._client.helpers import connect
 
 from wampproto.auth import (
     AnonymousAuthenticator,
@@ -38,4 +39,6 @@ __all__ = [
     "CBORSerializer",
     # runner for async client
     "run",
+    # xcorn connect function
+    "connect",
 ]
