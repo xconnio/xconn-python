@@ -2,6 +2,7 @@ from wampproto import joiner, serializers, auth
 from wampproto.joiner import Joiner
 
 from xconn import types, helpers
+from xconn.joiner_wampproto import JoinerWampprotoCli
 from xconn.transports import WebSocketTransport, AsyncWebSocketTransport, RawSocketTransport, AsyncRawSocketTransport
 
 
@@ -31,6 +32,25 @@ class WebsocketsJoiner:
             to_send = j.receive(data)
             if to_send is None:
                 return types.BaseSession(transport, j.get_session_details(), self._serializer)
+
+            transport.write(to_send)
+
+
+class WebsocketsWampprotoJoiner:
+    def __init__(self, ws_config: types.WebsocketConfig = types.WebsocketConfig()):
+        self._ws_config = ws_config
+
+    def join(self, uri: str, realm: str) -> types.BaseSession:
+        transport = WebSocketTransport.connect(uri, subprotocols=["wamp.2.json"], config=self._ws_config)
+
+        j = JoinerWampprotoCli(realm)
+        transport.write(j.send_hello())
+
+        while True:
+            data = transport.read()
+            to_send = j.receive(data)
+            if to_send is None:
+                return types.BaseSession(transport, j.get_session_details(), serializers.JSONSerializer())
 
             transport.write(to_send)
 

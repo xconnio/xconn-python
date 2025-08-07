@@ -398,7 +398,7 @@ class ClientSideLocalBaseSession(IAsyncBaseSession):
             return self._incoming_messages.popleft()
 
     async def send_message(self, msg: messages.Message):
-        await self._router.receive_message(self, msg)
+        await self._router.process_data(self, msg)
 
     async def receive_message(self) -> messages.Message:
         return self.serializer.deserialize(await self.receive())
