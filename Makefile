@@ -7,6 +7,7 @@ setup:
 	make install_uv
 	uv venv
 	uv pip install .[test,publish,dev] -U
+	make build-wampproto
 
 lint:
 	./.venv/bin/ruff format .
@@ -38,3 +39,8 @@ build-docs:
 
 clean-docs:
 	rm -rf site/
+
+build-wampproto:
+	rm -rf wampproto-cli
+	git clone https://github.com/xconnio/wampproto-cli.git
+	cd wampproto-cli/ && make build && sudo cp ./wampproto /usr/local/bin/
