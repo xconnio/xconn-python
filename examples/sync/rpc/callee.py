@@ -2,13 +2,13 @@ import sys
 import signal
 
 from xconn import Client
-from xconn.types import Result
+from xconn.types import Result, Invocation
 
 
-def sum_handler(*args, **kwargs) -> Result:
-    print(f"Received args={args}, kwargs={kwargs}")
+def sum_handler(inv: Invocation) -> Result:
+    print(f"Received args={inv.args}, kwargs={inv.kwargs}")
     total_sum = 0
-    for arg in args:
+    for arg in inv.args:
         total_sum += arg
 
     return Result(args=[total_sum])
@@ -24,13 +24,13 @@ if __name__ == "__main__":
     callee = client.connect("ws://localhost:8080/ws", "realm1")
 
     # function to handle received Invocation for "io.xconn.echo"
-    def echo(*args, **kwargs) -> Result:
-        print(f"Received args={args}, kwargs={kwargs}")
-        return Result(args, kwargs)
+    def echo(inv: Invocation) -> Result:
+        print(f"Received args={inv.args}, kwargs={inv.kwargs}")
+        return Result(inv.args, inv.kwargs)
 
     # function to handle received Invocation for "io.xconn.result"
-    def no_result_handler(*args, **kwargs):
-        print(f"Received args={args}, kwargs={kwargs}")
+    def no_result_handler(inv: Invocation):
+        print(f"Received args={inv.args}, kwargs={inv.kwargs}")
 
     echo_registration = callee.register(test_procedure_echo, echo)
     print(f"Registered procedure '{test_procedure_echo}'")
@@ -45,13 +45,13 @@ if __name__ == "__main__":
         print("SIGINT received. Cleaning up...")
 
         # unregister procedure "io.xconn.echo"
-        callee.unregister(echo_registration)
+        echo_registration.unregister()
 
         # unregister procedure "io.xconn.result"
-        callee.unregister(no_result_registration)
+        no_result_registration.unregister()
 
         # unregister procedure "io.xconn.sum"
-        callee.unregister(sum_registration)
+        sum_registration.unregister()
 
         # close connection to the server
         callee.leave()
