@@ -58,7 +58,7 @@ class RawSocketTransport(ITransport):
 
         if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
             sock = socket.create_connection((parsed.hostname, parsed.port))
-        elif parsed.scheme == "unix+ws":
+        elif parsed.scheme == "unix" or parsed.scheme == "unix+rs":
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.connect(parsed.path)
         else:
