@@ -58,7 +58,7 @@ def connect(
     details = j.join(uri, realm)
     session = Session(details)
 
-    session.on_disconnect(disconnect_callback)
+    session._on_disconnect(disconnect_callback)
 
     if connect_callback is not None:
         connect_callback()
