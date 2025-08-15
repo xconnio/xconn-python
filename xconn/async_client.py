@@ -58,7 +58,7 @@ async def connect(
     details = await j.join(uri, realm)
     session = AsyncSession(details)
 
-    session.on_disconnect(disconnect_callback)
+    session._on_disconnect(disconnect_callback)
 
     if connect_callback is not None:
         await connect_callback()
