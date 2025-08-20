@@ -119,7 +119,7 @@ class AsyncSession:
             request.future.set_result(None)
         elif isinstance(msg, messages.Result):
             request = self.call_requests.pop(msg.request_id)
-            request.set_result(types.Result(msg.args, msg.kwargs, msg.options))
+            request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self.registrations[msg.registration_id]
