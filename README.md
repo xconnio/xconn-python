@@ -27,9 +27,9 @@ async def my_procedure(first_name: str, last_name: str, age: int):
 async def my_topic():
     print("received event...")
 ```
-run the app with xcorn command (note: this automatically starts the debug router)
+run the app with xconn command (note: this automatically starts the debug router)
 ```shell
-(xconn-python) om26er@Home-PC:~$ xcorn sample:app --start-router
+(xconn-python) om26er@Home-PC:~$ xconn sample:app --start-router
 starting server on 127.0.0.1:8080
 connected realm1
 Registered procedure io.xconn.hello
