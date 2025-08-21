@@ -16,7 +16,6 @@ dependencies = [
   "wampproto >= 0.3.0",
   "aiohttp",
   "uvloop",
-  "mkdocs-material[imaging]",
   "pydantic",
   "python-dotenv",
   "watchdog",
@@ -38,7 +37,7 @@ test = [
   "pytest-timeout",
 ]
 publish = ["twine", "build"]
-dev = ["wampproto@git+https://github.com/xconnio/wampproto-python"]
+dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python"]
 
 [project.scripts]
 "xcorn" = "xconn._client.__main__:main"
