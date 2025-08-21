@@ -21,18 +21,18 @@ class RegisterRequest:
 class Registration:
     def __init__(self, registration_id: int, session: Session):
         self.registration_id = registration_id
-        self.session = session
+        self._session = session
 
     def unregister(self) -> None:
-        if not self.session.base_session.transport.is_connected():
+        if not self._session._base_session.transport.is_connected():
             raise Exception("cannot unregister procedure: session not established")
 
-        unregister = messages.Unregister(messages.UnregisterFields(self.session.idgen.next(), self.registration_id))
-        data = self.session.session.send_message(unregister)
+        unregister = messages.Unregister(messages.UnregisterFields(self._session._idgen.next(), self.registration_id))
+        data = self._session._session.send_message(unregister)
 
         f: Future = Future()
-        self.session.unregister_requests[unregister.request_id] = types.UnregisterRequest(f, self.registration_id)
-        self.session.base_session.send(data)
+        self._session._unregister_requests[unregister.request_id] = types.UnregisterRequest(f, self.registration_id)
+        self._session._base_session.send(data)
 
         f.result()
 
@@ -46,18 +46,20 @@ class SubscribeRequest:
 class Subscription:
     def __init__(self, subscription_id: int, session: Session):
         self.subscription_id = subscription_id
-        self.session = session
+        self._session = session
 
     def unsubscribe(self) -> None:
-        if not self.session.base_session.transport.is_connected():
+        if not self._session._base_session.transport.is_connected():
             raise Exception("cannot unsubscribe topic: session not established")
 
-        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self.session.idgen.next(), self.subscription_id))
-        data = self.session.session.send_message(unsubscribe)
+        unsubscribe = messages.Unsubscribe(
+            messages.UnsubscribeFields(self._session._idgen.next(), self.subscription_id)
+        )
+        data = self._session._session.send_message(unsubscribe)
 
         f: Future = Future()
-        self.session.unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, self.subscription_id)
-        self.session.base_session.send(data)
+        self._session._unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, self.subscription_id)
+        self._session._base_session.send(data)
 
         f.result()
 
@@ -65,65 +67,65 @@ class Subscription:
 class Session:
     def __init__(self, base_session: types.BaseSession):
         # RPC data structures
-        self.call_requests: dict[int, Future[types.Result]] = {}
-        self.register_requests: dict[int, RegisterRequest] = {}
-        self.registrations: dict[int, Callable[[types.Invocation], types.Result]] = {}
-        self.unregister_requests: dict[int, types.UnregisterRequest] = {}
+        self._call_requests: dict[int, Future[types.Result]] = {}
+        self._register_requests: dict[int, RegisterRequest] = {}
+        self._registrations: dict[int, Callable[[types.Invocation], types.Result]] = {}
+        self._unregister_requests: dict[int, types.UnregisterRequest] = {}
 
         # PubSub data structures
-        self.publish_requests: dict[int, Future[None]] = {}
-        self.subscribe_requests: dict[int, SubscribeRequest] = {}
-        self.subscriptions: dict[int, Callable[[types.Event], None]] = {}
-        self.unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
+        self._publish_requests: dict[int, Future[None]] = {}
+        self._subscribe_requests: dict[int, SubscribeRequest] = {}
+        self._subscriptions: dict[int, Callable[[types.Event], None]] = {}
+        self._unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
 
-        self.goodbye_request = Future()
+        self._goodbye_request = Future()
 
         # ID generator
-        self.idgen = idgen.SessionScopeIDGenerator()
+        self._idgen = idgen.SessionScopeIDGenerator()
 
-        self.base_session = base_session
+        self._base_session = base_session
 
         # initialize the sans-io wamp session
-        self.session = session.WAMPSession(base_session.serializer)
+        self._session = session.WAMPSession(base_session.serializer)
 
         self._disconnect_callback: list[Callable[[], None] | None] = []
 
-        thread = Thread(target=self.wait, daemon=False)
+        thread = Thread(target=self._wait, daemon=False)
         thread.start()
 
-    def wait(self):
-        while self.base_session.transport.is_connected():
+    def _wait(self):
+        while self._base_session.transport.is_connected():
             try:
-                data = self.base_session.receive()
+                data = self._base_session.receive()
             except Exception:
                 break
 
-            self.process_incoming_message(self.session.receive(data))
+            self._process_incoming_message(self._session.receive(data))
 
         for callback in self._disconnect_callback:
             callback()
 
-    def process_incoming_message(self, msg: messages.Message):
+    def _process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
-            request = self.register_requests.pop(msg.request_id)
-            self.registrations[msg.registration_id] = request.endpoint
+            request = self._register_requests.pop(msg.request_id)
+            self._registrations[msg.registration_id] = request.endpoint
             request.future.set_result(Registration(msg.registration_id, self))
         elif isinstance(msg, messages.Unregistered):
-            request = self.unregister_requests.pop(msg.request_id)
-            del self.registrations[request.registration_id]
+            request = self._unregister_requests.pop(msg.request_id)
+            del self._registrations[request.registration_id]
             request.future.set_result(None)
         elif isinstance(msg, messages.Result):
-            request = self.call_requests.pop(msg.request_id)
+            request = self._call_requests.pop(msg.request_id)
             request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Invocation):
             try:
-                endpoint = self.registrations[msg.registration_id]
+                endpoint = self._registrations[msg.registration_id]
                 result = endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
 
                 if result is None:
-                    data = self.session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                    data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
                 elif isinstance(result, types.Result):
-                    data = self.session.send_message(
+                    data = self._session.send_message(
                         messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
                     )
                 else:
@@ -133,71 +135,71 @@ class Session:
                     msg_to_send = messages.Error(
                         messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
                     )
-                    data = self.session.send_message(msg_to_send)
+                    data = self._session.send_message(msg_to_send)
 
-                self.base_session.send(data)
+                self._base_session.send(data)
             except ApplicationError as e:
                 msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
-                data = self.session.send_message(msg_to_send)
-                self.base_session.send(data)
+                data = self._session.send_message(msg_to_send)
+                self._base_session.send(data)
             except Exception as e:
                 msg_to_send = messages.Error(
                     messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
                 )
-                data = self.session.send_message(msg_to_send)
-                self.base_session.send(data)
+                data = self._session.send_message(msg_to_send)
+                self._base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
-            request = self.subscribe_requests.pop(msg.request_id)
-            self.subscriptions[msg.subscription_id] = request.endpoint
+            request = self._subscribe_requests.pop(msg.request_id)
+            self._subscriptions[msg.subscription_id] = request.endpoint
             request.future.set_result(Subscription(msg.subscription_id, self))
         elif isinstance(msg, messages.Unsubscribed):
-            request = self.unsubscribe_requests.pop(msg.request_id)
-            del self.subscriptions[request.subscription_id]
+            request = self._unsubscribe_requests.pop(msg.request_id)
+            del self._subscriptions[request.subscription_id]
             request.future.set_result(None)
         elif isinstance(msg, messages.Published):
-            request = self.publish_requests.pop(msg.request_id)
+            request = self._publish_requests.pop(msg.request_id)
             request.set_result(None)
         elif isinstance(msg, messages.Event):
             try:
-                endpoint = self.subscriptions[msg.subscription_id]
+                endpoint = self._subscriptions[msg.subscription_id]
                 endpoint(types.Event(msg.args, msg.kwargs, msg.details))
             except Exception as e:
                 print(e)
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:
-                    call_request = self.call_requests.pop(msg.request_id)
+                    call_request = self._call_requests.pop(msg.request_id)
                     call_request.set_exception(exception_from_error(msg))
                 case messages.Register.TYPE:
-                    register_request = self.register_requests.pop(msg.request_id)
+                    register_request = self._register_requests.pop(msg.request_id)
                     register_request.future.set_exception(exception_from_error(msg))
                 case messages.Unregister.TYPE:
-                    unregister_request = self.unregister_requests.pop(msg.request_id)
+                    unregister_request = self._unregister_requests.pop(msg.request_id)
                     unregister_request.future.set_exception(exception_from_error(msg))
                 case messages.Subscribe.TYPE:
-                    subscribe_request = self.subscribe_requests.pop(msg.request_id)
+                    subscribe_request = self._subscribe_requests.pop(msg.request_id)
                     subscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Unsubscribe.TYPE:
-                    unsubscribe_request = self.unsubscribe_requests.pop(msg.request_id)
+                    unsubscribe_request = self._unsubscribe_requests.pop(msg.request_id)
                     unsubscribe_request.future.set_exception(exception_from_error(msg))
                 case messages.Publish.TYPE:
-                    publish_request = self.publish_requests.pop(msg.request_id)
+                    publish_request = self._publish_requests.pop(msg.request_id)
                     publish_request.set_exception(exception_from_error(msg))
                 case _:
                     raise exception.ProtocolError(msg.__str__())
         elif isinstance(msg, messages.Goodbye):
-            self.goodbye_request.set_result(None)
+            self._goodbye_request.set_result(None)
         else:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, *args, **kwargs) -> types.Result:
         options = kwargs.pop("options", None)
-        call = messages.Call(messages.CallFields(self.idgen.next(), procedure, args, kwargs, options=options))
-        data = self.session.send_message(call)
+        call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
+        data = self._session.send_message(call)
 
         f = Future()
-        self.call_requests[call.request_id] = f
-        self.base_session.send(data)
+        self._call_requests[call.request_id] = f
+        self._base_session.send(data)
 
         return f.result()
 
@@ -207,52 +209,52 @@ class Session:
         invocation_handler: Callable | Callable[[types.Invocation], types.Result],
         options: dict = None,
     ) -> Registration:
-        register = messages.Register(messages.RegisterFields(self.idgen.next(), procedure, options=options))
-        data = self.session.send_message(register)
+        register = messages.Register(messages.RegisterFields(self._idgen.next(), procedure, options=options))
+        data = self._session.send_message(register)
 
         f: Future[Registration] = Future()
-        self.register_requests[register.request_id] = RegisterRequest(f, invocation_handler)
+        self._register_requests[register.request_id] = RegisterRequest(f, invocation_handler)
 
-        self.base_session.send(data)
+        self._base_session.send(data)
 
         return f.result()
 
     def subscribe(self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None) -> Subscription:
-        subscribe = messages.Subscribe(messages.SubscribeFields(self.idgen.next(), topic, options=options))
-        data = self.session.send_message(subscribe)
+        subscribe = messages.Subscribe(messages.SubscribeFields(self._idgen.next(), topic, options=options))
+        data = self._session.send_message(subscribe)
 
         f: Future[Subscription] = Future()
-        self.subscribe_requests[subscribe.request_id] = SubscribeRequest(f, event_handler)
-        self.base_session.send(data)
+        self._subscribe_requests[subscribe.request_id] = SubscribeRequest(f, event_handler)
+        self._base_session.send(data)
 
         return f.result()
 
     def publish(self, topic: str, args: list[Any] = None, kwargs: dict = None, options: dict = None):
-        publish = messages.Publish(messages.PublishFields(self.idgen.next(), topic, args, kwargs, options))
-        data = self.session.send_message(publish)
+        publish = messages.Publish(messages.PublishFields(self._idgen.next(), topic, args, kwargs, options))
+        data = self._session.send_message(publish)
 
         if options is not None and options.get("acknowledge", False):
             f: Future = Future()
-            self.publish_requests[publish.request_id] = f
-            self.base_session.send(data)
+            self._publish_requests[publish.request_id] = f
+            self._base_session.send(data)
             return f.result()
 
-        self.base_session.send(data)
+        self._base_session.send(data)
 
     def leave(self):
-        self.goodbye_request = Future()
+        self._goodbye_request = Future()
 
         goodbye = messages.Goodbye(messages.GoodbyeFields({}, uris.CLOSE_REALM))
-        data = self.session.send_message(goodbye)
-        self.base_session.send(data)
+        data = self._session.send_message(goodbye)
+        self._base_session.send(data)
         try:
-            self.goodbye_request.result(timeout=10)
+            self._goodbye_request.result(timeout=10)
         finally:
-            self.base_session.close()
+            self._base_session.close()
 
     def ping(self, timeout: int = 10) -> float:
-        return self.base_session.transport.ping(timeout)
+        return self._base_session.transport.ping(timeout)
 
-    def on_disconnect(self, callback: Callable[[], None]) -> None:
+    def _on_disconnect(self, callback: Callable[[], None]) -> None:
         if callback is not None:
             self._disconnect_callback.append(callback)
