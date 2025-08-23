@@ -42,3 +42,17 @@ __all__ = [
     # xcorn connect function
     "connect",
 ]
+
+_capnp_import_error = None
+try:
+    from xconn.helpers import CapnProtoSerializer
+    __all__.extend(["CapnProtoSerializer"])
+except ImportError as e:
+    _capnp_import_error = e
+    class CapnProtoSerializer:
+        def __init__(self, *args, **kwargs):
+            raise ImportError(
+                "Cap'n Proto serializer support is not installed.\n"
+                "Install it with:\n"
+                "  uv pip install xconn[capnproto]"
+            ) from _capnp_import_error
