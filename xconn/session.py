@@ -193,8 +193,21 @@ class Session:
             raise ValueError("received unknown message")
 
     def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        options = kwargs.pop("options", None)
-        call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
+        options: dict[str, None] | None = kwargs.pop("options", None)
+        if options is not None and options.get("x_payload_raw", False):
+            options.pop("x_payload_raw", None)
+            if len(args) > 1 or len(kwargs) > 0:
+                raise TypeError("must provide at most one argument when 'x_payload_raw' is set")
+
+            if not isinstance(args[0], bytes):
+                raise TypeError("argument must be of type byte when 'x_payload_raw' is set")
+
+            call = messages.Call(
+                messages.CallFields(self._idgen.next(), procedure, options=options, payload=args[0], serializer=0)
+            )
+        else:
+            call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
+
         data = self._session.send_message(call)
 
         f = Future()
