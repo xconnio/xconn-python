@@ -196,15 +196,30 @@ class Session:
         options: dict[str, None] | None = kwargs.pop("options", None)
         if options is not None and options.get("x_payload_raw", False):
             options.pop("x_payload_raw", None)
-            if len(args) > 1 or len(kwargs) > 0:
+            if len(args) > 1:
                 raise TypeError("must provide at most one argument when 'x_payload_raw' is set")
 
-            if not isinstance(args[0], bytes):
-                raise TypeError("argument must be of type byte when 'x_payload_raw' is set")
+            if len(kwargs) != 0:
+                raise TypeError("must not provide kwargs when 'x_payload_raw' is set")
 
-            call = messages.Call(
-                messages.CallFields(self._idgen.next(), procedure, options=options, payload=args[0], serializer=0)
-            )
+            if len(args) == 0:
+                call = messages.Call(
+                    messages.CallFields(self._idgen.next(), procedure, options=options, serializer=0, binary=True)
+                )
+            else:
+                if not isinstance(args[0], bytearray):
+                    raise TypeError("argument must be of type bytearray when 'x_payload_raw' is set")
+
+                call = messages.Call(
+                    messages.CallFields(
+                        self._idgen.next(),
+                        procedure,
+                        options=options,
+                        payload=args[0],
+                        serializer=0,
+                        binary=True,
+                    )
+                )
         else:
             call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
 
