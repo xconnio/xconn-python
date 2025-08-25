@@ -6,7 +6,7 @@ install_uv:
 setup:
 	make install_uv
 	uv venv
-	uv pip install .[test,publish,dev] -U
+	uv pip install .[test,publish,dev,capnproto] -U
 
 lint:
 	./.venv/bin/ruff format .

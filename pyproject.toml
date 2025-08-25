@@ -38,6 +38,9 @@ test = [
 ]
 publish = ["twine", "build"]
 dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python"]
+capnproto = [
+    "wampproto-messages-capnproto@git+https://github.com/xconnio/wampproto-messages-capnproto@main#subdirectory=python"
+]
 
 [project.scripts]
 "xcorn" = "xconn._client.__main__:main"

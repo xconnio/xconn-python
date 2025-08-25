@@ -5,6 +5,7 @@ import aiohttp
 from aiohttp import web
 from wampproto.auth import IServerAuthenticator
 
+from xconn import helpers
 from xconn.router import Router
 from xconn.acceptor import AIOHttpAcceptor
 
@@ -15,7 +16,14 @@ class Server:
         self.authenticator = authenticator
 
     async def _websocket_handler(self, request):
-        ws = web.WebSocketResponse(protocols=["wamp.2.json", "wamp.2.cbor", "wamp.2.msgpack"])
+        protocols = ["wamp.2.json", "wamp.2.cbor", "wamp.2.msgpack"]
+        try:
+            if helpers._CAPNP_AVAILABLE:
+                protocols.append(helpers.CAPNPROTO_SUBPROTOCOL)
+        except (ImportError, AttributeError):
+            pass
+
+        ws = web.WebSocketResponse(protocols=protocols)
         # upgrade this connection to websocket.
         await ws.prepare(request)
 

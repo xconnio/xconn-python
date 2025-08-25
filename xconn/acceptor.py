@@ -15,6 +15,11 @@ class WebsocketsAcceptor:
         Subprotocol("wamp.2.cbor"),
         Subprotocol("wamp.2.msgpack"),
     ]
+    try:
+        if helpers._CAPNP_AVAILABLE:
+            WSProtocols.append(Subprotocol(helpers.CAPNPROTO_SUBPROTOCOL))
+    except (ImportError, AttributeError):
+        pass
 
     def __init__(self, authenticator: auth.IServerAuthenticator = None) -> None:
         self.authenticator = authenticator
