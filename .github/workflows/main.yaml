@@ -26,7 +26,7 @@ jobs:
         run: |
           git clone https://github.com/xconnio/xconn-aat-setup.git
           cd xconn-aat-setup
-          docker compose up -d
+          make up
           sudo snap install wick --classic
           timeout 30 bash -c 'until wick --url ws://localhost:8081/ws publish test; do sleep 1; done'
 
