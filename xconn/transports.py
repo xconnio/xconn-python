@@ -147,7 +147,7 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
         if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
             reader, writer = await asyncio.open_connection(parsed.hostname, parsed.port)
-        elif parsed.scheme == "unix+ws":
+        elif parsed.scheme == "unix" or parsed.scheme == "unix+rs":
             reader, writer = await asyncio.open_unix_connection(parsed.path)
         else:
             raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
