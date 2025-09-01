@@ -4,6 +4,7 @@ from wampproto.transports.rawsocket import SERIALIZER_TYPE_JSON, SERIALIZER_TYPE
 
 try:
     from wamp_msgs_capnp.serializer import CapnProtoSerializer
+
     _CAPNP_AVAILABLE = True
 except ImportError:
     _CAPNP_AVAILABLE = False
@@ -29,9 +30,7 @@ def get_ws_subprotocol(serializer: serializers.Serializer):
         return CAPNPROTO_SUBPROTOCOL
     elif isinstance(serializer, type) and serializer.__name__ == "CapnProtoSerializer":
         raise ImportError(
-            "Cap'n Proto serializer support is not installed.\n"
-            "Install it with:\n"
-            "  uv pip install xconn[capnproto]"
+            "Cap'n Proto serializer support is not installed.\nInstall it with:\n  uv pip install xconn[capnproto]"
         )
     else:
         raise ValueError("invalid serializer")
@@ -48,9 +47,7 @@ def get_rs_protocol(serializer: serializers.Serializer):
         return SERIALIZER_TYPE_CAPNPROTO
     elif isinstance(serializer, type) and serializer.__name__ == "CapnProtoSerializer":
         raise ImportError(
-            "Cap'n Proto serializer support is not installed.\n"
-            "Install it with:\n"
-            "  uv pip install xconn[capnproto]"
+            "Cap'n Proto serializer support is not installed.\nInstall it with:\n  uv pip install xconn[capnproto]"
         )
 
     else:
@@ -67,9 +64,7 @@ def get_serializer(ws_subprotocol: str) -> serializers.Serializer:
     elif ws_subprotocol == CAPNPROTO_SUBPROTOCOL:
         if not _CAPNP_AVAILABLE:
             raise ImportError(
-                "Cap'n Proto serializer support is not installed.\n"
-                "Install it with:\n"
-                "  uv pip install xconn[capnproto]"
+                "Cap'n Proto serializer support is not installed.\nInstall it with:\n  uv pip install xconn[capnproto]"
             )
         return CapnProtoSerializer()
     else:
