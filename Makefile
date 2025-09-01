@@ -1,3 +1,5 @@
+.PHONY: build
+
 install_uv:
 	@if ! command -v uv >/dev/null 2>&1; then \
   		curl -LsSf https://astral.sh/uv/install.sh | sh; \
@@ -8,10 +10,10 @@ setup:
 	uv venv
 	uv pip install .[test,publish,dev,capnproto] -U
 
-lint:
+format:
 	./.venv/bin/ruff format .
 
-check-lint:
+lint:
 	./.venv/bin/ruff check .
 
 test:
@@ -20,14 +22,11 @@ test:
 run:
 	./.venv/bin/xconn example:app --directory examples/simple
 
-publish-build:
-	rm -rf ./dist ./build
-	.venv/bin/python -m build --sdist
-	.venv/bin/twine check dist/*
-	@echo ========================================================
-	@echo
-	@echo now run .venv/bin/twine upload dist/newly_created.tar.gz
+build:
+	uv build
 
+publish:
+	uv publish
 
 run-docs:
 	mkdocs serve
