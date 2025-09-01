@@ -4,16 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xconn"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
-  {name="Omer Akram", email="omer@thing.com"},
+  {name="Omer Akram", email="omer@xconn.io"},
   {name="Mahad Munir", email="mahad@xconn.io"},
 ]
 description = "https://github.com/xconnio/xconn-python"
 readme = "README.md"
 dependencies = [
   "websockets",
-  "wampproto >= 0.3.0",
+  "wampproto >= 0.4.0",
   "aiohttp",
   "uvloop",
   "pydantic",
@@ -26,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +44,7 @@ capnproto = [
 ]
 
 [project.scripts]
+# no, you did not find a typo.
 "xcorn" = "xconn._client.__main__:main"
 
 [project.urls]
