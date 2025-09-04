@@ -125,7 +125,7 @@ async def test_rpc_async(url: str, serializer: serializers.Serializer, authentic
     client = AsyncClient(authenticator=authenticator, serializer=serializer)
     session = await client.connect(url, REALM)
     reg = await session.register("io.xconn.test", inv_handler)
-    result = await session.call("io.xconn.test", *args)
+    result = await session.call("io.xconn.test", args)
     assert result.args == args
 
     await reg.unregister()
