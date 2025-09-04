@@ -192,8 +192,13 @@ class Session:
         else:
             raise ValueError("received unknown message")
 
-    def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        options: dict[str, None] | None = kwargs.pop("options", None)
+    def call(
+        self,
+        procedure: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> types.Result:
         if options is not None and options.get("x_payload_raw", False):
             options.pop("x_payload_raw", None)
             if len(args) > 1:
