@@ -217,8 +217,13 @@ class AsyncSession:
 
         return await f
 
-    async def call(self, procedure: str, *args, **kwargs) -> types.Result:
-        options = kwargs.pop("options", None)
+    async def call(
+        self,
+        procedure: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> types.Result:
         call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
         data = self._session.send_message(call)
 

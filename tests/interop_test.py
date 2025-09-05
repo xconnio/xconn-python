@@ -27,7 +27,7 @@ AUTHENTICATORS = [
 def test_call(url: str, serializer: serializers.Serializer, authenticator: auth.IClientAuthenticator):
     client = Client(authenticator=authenticator, serializer=serializer)
     session = client.connect(url, REALM)
-    result = session.call(PROCEDURE_ADD, 2, 2)
+    result = session.call(PROCEDURE_ADD, [2, 2])
     assert result.args[0] == 4
 
     session.leave()
@@ -64,7 +64,7 @@ def test_rpc(url: str, serializer: serializers.Serializer, authenticator: auth.I
     client = Client(authenticator=authenticator, serializer=serializer)
     session = client.connect(url, REALM)
     reg = session.register("io.xconn.test", inv_handler)
-    result = session.call("io.xconn.test", *args)
+    result = session.call("io.xconn.test", args)
     assert result.args == args
 
     reg.unregister()
@@ -125,7 +125,7 @@ async def test_rpc_async(url: str, serializer: serializers.Serializer, authentic
     client = AsyncClient(authenticator=authenticator, serializer=serializer)
     session = await client.connect(url, REALM)
     reg = await session.register("io.xconn.test", inv_handler)
-    result = await session.call("io.xconn.test", *args)
+    result = await session.call("io.xconn.test", args)
     assert result.args == args
 
     await reg.unregister()
