@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any
@@ -77,6 +78,7 @@ class Session:
         self._subscribe_requests: dict[int, SubscribeRequest] = {}
         self._subscriptions: dict[int, Callable[[types.Event], None]] = {}
         self._unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
+        self._progress_handlers: dict[int, Callable[[types.Result], None]] = {}
 
         self._goodbye_request = Future()
 
@@ -115,29 +117,67 @@ class Session:
             del self._registrations[request.registration_id]
             request.future.set_result(None)
         elif isinstance(msg, messages.Result):
-            request = self._call_requests.pop(msg.request_id)
-            request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
+            progress = msg.details.get("progress", False)
+            if progress:
+                progress_handler = self._progress_handlers.get(msg.request_id, None)
+                if progress_handler is not None:
+                    try:
+                        progress_handler(types.Result(msg.args, msg.kwargs, msg.details))
+                    except Exception as e:
+                        # TODO: implement call canceling
+                        print(e)
+            else:
+                request = self._call_requests.pop(msg.request_id, None)
+                if request is not None:
+                    request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
+                self._progress_handlers.pop(msg.request_id, None)
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self._registrations[msg.registration_id]
-                result = endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
+                invocation = types.Invocation(msg.args, msg.kwargs, msg.details)
+                receive_progress = msg.details.get("receive_progress", False)
+                if receive_progress:
 
-                if result is None:
-                    data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
-                elif isinstance(result, types.Result):
-                    data = self._session.send_message(
-                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-                    )
-                else:
-                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
-                        type(result)
-                    )
-                    msg_to_send = messages.Error(
-                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
-                    )
-                    data = self._session.send_message(msg_to_send)
+                    def _progress_func(args: list[Any] | None, kwargs: dict[str, Any] | None):
+                        yield_msg = messages.Yield(
+                            messages.YieldFields(msg.request_id, args, kwargs, {"progress": True})
+                        )
+                        data = self._session.send_message(yield_msg)
+                        self._base_session.send(data)
 
-                self._base_session.send(data)
+                    invocation.send_progress = _progress_func
+
+                def handle_endpoint_invocation():
+                    try:
+                        result = endpoint(invocation)
+                        if result is None:
+                            data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                        elif isinstance(result, types.Result):
+                            data = self._session.send_message(
+                                messages.Yield(
+                                    messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details)
+                                )
+                            )
+                        else:
+                            message = (
+                                "Endpoint returned invalid result type. Expected types.Result or None, got: "
+                                + str(type(result))
+                            )
+                            msg_to_send = messages.Error(
+                                messages.ErrorFields(
+                                    msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message]
+                                )
+                            )
+                            data = self._session.send_message(msg_to_send)
+                    except Exception as e:
+                        message = f"unexpected error calling endpoint {endpoint.__name__}, error is: {e}"
+                        msg_to_send = messages.Error(
+                            messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                        )
+                        data = self._session.send_message(msg_to_send)
+                    self._base_session.send(data)
+
+                threading.Thread(target=handle_endpoint_invocation).start()
             except ApplicationError as e:
                 msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
                 data = self._session.send_message(msg_to_send)
@@ -228,13 +268,33 @@ class Session:
         else:
             call = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options=options))
 
-        data = self._session.send_message(call)
+        return self._call(call)
 
+    def _call(self, call_msg: messages.Call) -> types.Result:
         f = Future()
-        self._call_requests[call.request_id] = f
+        self._call_requests[call_msg.request_id] = f
+
+        data = self._session.send_message(call_msg)
         self._base_session.send(data)
 
         return f.result()
+
+    def call_progress(
+        self,
+        procedure: str,
+        progress_handler: Callable[[types.Result], None],
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> types.Result:
+        if options is None:
+            options = {}
+
+        options["receive_progress"] = True
+        call_msg = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options))
+        self._progress_handlers[call_msg.request_id] = progress_handler
+
+        return self._call(call_msg)
 
     def register(
         self,

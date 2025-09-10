@@ -4,7 +4,7 @@ import asyncio
 import inspect
 from dataclasses import dataclass
 from asyncio import Future, get_event_loop
-from typing import Callable, Union, Awaitable, Any
+from typing import Callable, Awaitable, Any
 
 from wampproto import messages, idgen, session
 
@@ -70,10 +70,7 @@ class AsyncSession:
         # RPC data structures
         self._call_requests: dict[int, Future[types.Result]] = {}
         self._register_requests: dict[int, RegisterRequest] = {}
-        self._registrations: dict[
-            int,
-            Union[Callable[[types.Invocation], types.Result], Callable[[types.Invocation], Awaitable[types.Result]]],
-        ] = {}
+        self._registrations: dict[int, Callable[[types.Invocation], Awaitable[types.Result]]] = {}
         self._unregister_requests: dict[int, types.UnregisterRequest] = {}
 
         # PubSub data structures
@@ -81,6 +78,7 @@ class AsyncSession:
         self._subscribe_requests: dict[int, SubscribeRequest] = {}
         self._subscriptions: dict[int, Callable[[types.Event], Awaitable[None]]] = {}
         self._unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
+        self._progress_handlers: dict[int, Callable[[types.Result], Awaitable[None]]] = {}
 
         self._goodbye_request = Future()
 
@@ -120,29 +118,68 @@ class AsyncSession:
             del self._registrations[request.registration_id]
             request.future.set_result(None)
         elif isinstance(msg, messages.Result):
-            request = self._call_requests.pop(msg.request_id)
-            request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
+            progress = msg.details.get("progress", False)
+            if progress:
+                progress_handler = self._progress_handlers.get(msg.request_id, None)
+                if progress_handler is not None:
+                    try:
+                        await progress_handler(types.Result(msg.args, msg.kwargs, msg.details))
+                    except Exception as e:
+                        # TODO: implement call canceling
+                        print(e)
+            else:
+                request = self._call_requests.pop(msg.request_id, None)
+                if request is not None:
+                    request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
+                self._progress_handlers.pop(msg.request_id, None)
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self._registrations[msg.registration_id]
-                result = await endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
+                invocation = types.Invocation(msg.args, msg.kwargs, msg.details)
+                receive_progress = msg.details.get("receive_progress", False)
+                if receive_progress:
 
-                if result is None:
-                    data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
-                elif isinstance(result, types.Result):
-                    data = self._session.send_message(
-                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-                    )
-                else:
-                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
-                        type(result)
-                    )
-                    msg_to_send = messages.Error(
-                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
-                    )
-                    data = self._session.send_message(msg_to_send)
+                    async def _progress_func(args: list[Any] | None, kwargs: dict[str, Any] | None):
+                        yield_msg = messages.Yield(
+                            messages.YieldFields(msg.request_id, args, kwargs, {"progress": True})
+                        )
+                        data = self._session.send_message(yield_msg)
+                        await self._base_session.send(data)
 
-                await self._base_session.send(data)
+                    invocation.send_progress = _progress_func
+
+                async def handle_endpoint_invocation():
+                    try:
+                        result = await endpoint(invocation)
+                        if result is None:
+                            data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+                        elif isinstance(result, types.Result):
+                            data = self._session.send_message(
+                                messages.Yield(
+                                    messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details)
+                                )
+                            )
+                        else:
+                            message = (
+                                "Endpoint returned invalid result type. Expected types.Result or None, got: "
+                                + str(type(result))
+                            )
+                            msg_to_send = messages.Error(
+                                messages.ErrorFields(
+                                    msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message]
+                                )
+                            )
+                            data = self._session.send_message(msg_to_send)
+                    except Exception as e:
+                        message = f"unexpected error calling endpoint {endpoint.__name__}, error is: {e}"
+                        msg_to_send = messages.Error(
+                            messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                        )
+                        data = self._session.send_message(msg_to_send)
+                    await self._base_session.send(data)
+
+                current_loop = get_event_loop()
+                current_loop.create_task(handle_endpoint_invocation())
             except ApplicationError as e:
                 msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
                 data = self._session.send_message(msg_to_send)
@@ -217,6 +254,15 @@ class AsyncSession:
 
         return await f
 
+    async def _call(self, call_msg: messages.Call) -> types.Result:
+        f = Future()
+        self._call_requests[call_msg.request_id] = f
+
+        data = self._session.send_message(call_msg)
+        await self._base_session.send(data)
+
+        return await f
+
     async def call(
         self,
         procedure: str,
@@ -233,6 +279,23 @@ class AsyncSession:
         await self._base_session.send(data)
 
         return await f
+
+    async def call_progress(
+        self,
+        procedure: str,
+        progress_handler: Callable[[types.Result], Awaitable[None]],
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> types.Result:
+        if options is None:
+            options = {}
+
+        options["receive_progress"] = True
+        call_msg = messages.Call(messages.CallFields(self._idgen.next(), procedure, args, kwargs, options))
+        self._progress_handlers[call_msg.request_id] = progress_handler
+
+        return await self._call(call_msg)
 
     async def subscribe(
         self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None
