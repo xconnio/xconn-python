@@ -171,7 +171,7 @@ class AsyncRawSocketTransport(IAsyncTransport):
         writer.write(hs_request.to_bytes())
         await writer.drain()
 
-        hs_response_bytes = await reader.read(RAW_SOCKET_HEADER_LENGTH)
+        hs_response_bytes = await reader.readexactly(RAW_SOCKET_HEADER_LENGTH)
         hs_response = Handshake.from_bytes(hs_response_bytes)
 
         if hs_request.protocol != hs_response.protocol:
@@ -180,13 +180,13 @@ class AsyncRawSocketTransport(IAsyncTransport):
         return AsyncRawSocketTransport(reader, writer)
 
     async def read(self) -> str | bytes:
-        msg_header_bytes = await self._reader.read(RAW_SOCKET_HEADER_LENGTH)
+        msg_header_bytes = await self._reader.readexactly(RAW_SOCKET_HEADER_LENGTH)
         msg_header = MessageHeader.from_bytes(msg_header_bytes)
 
         if msg_header.kind == MSG_TYPE_WAMP:
-            return await self._reader.read(msg_header.length)
+            return await self._reader.readexactly(msg_header.length)
         elif msg_header.kind == MSG_TYPE_PING:
-            ping_payload = await self._reader.read(msg_header.length)
+            ping_payload = await self._reader.readexactly(msg_header.length)
             pong = MessageHeader(MSG_TYPE_PONG, msg_header.length)
             self._writer.write(pong.to_bytes())
             await self._writer.drain()
@@ -195,7 +195,7 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
             return await self.read()
         elif msg_header.kind == MSG_TYPE_PONG:
-            pong_payload = await self._reader.read(msg_header.length)
+            pong_payload = await self._reader.readexactly(msg_header.length)
             pending_ping = self._pending_pings.pop(pong_payload, None)
             if pending_ping is not None:
                 received_at = time.time() * 1000
