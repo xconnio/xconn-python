@@ -11,23 +11,23 @@ async def main() -> None:
     caller = await client.connect("ws://localhost:8080/ws", "realm1")
 
     # call procedure "io.xconn.echo"
-    result = await caller.call(test_procedure_echo, "hello", "world", key="value")
+    result = await caller.call(test_procedure_echo, ["hello", "world"], {"key": "value"})
     print(f"Result of procedure '{test_procedure_echo}': args={result.args}, kwargs={result.kwargs}")
 
     # call procedure "io.xconn.echo"
-    result = await caller.call(test_procedure_async_echo, "hello", "world", "async", key="value")
+    result = await caller.call(test_procedure_async_echo, ["hello", "world", "async"], {"key": "value"})
     print(f"Result of procedure '{test_procedure_async_echo}': args={result.args}, kwargs={result.kwargs}")
 
     # call procedure "io.xconn.result" with args
-    await caller.call(test_procedure_echo, "hello", "world")
+    await caller.call(test_procedure_echo, ["hello", "world"])
 
     # call procedure "io.xconn.result" with kwargs
-    await caller.call(test_procedure_echo, name="john")
+    await caller.call(test_procedure_echo, kwargs={"name": "john"})
 
     # call procedure "io.xconn.result" with args & kwargs
-    await caller.call(test_procedure_echo, 1, 2, name="john")
+    await caller.call(test_procedure_echo, [1, 2], kwargs={"name":"john"})
 
-    sum_result = await caller.call(test_procedure_sum, 2, 2, 6)
+    sum_result = await caller.call(test_procedure_sum, [2, 2, 6])
     print(f"Sum={sum_result.args[0]}")
 
     # close connection to the server

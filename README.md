@@ -92,7 +92,7 @@ def invocation_handler(invocation: Invocation):
 from xconn.session import Session
 
 def example_call(session: Session):
-    result = session.call("io.xconn.example", "1", "2", key="value")
+    result = session.call("io.xconn.example", ["1", "2"], {"key": "value"})
     print(f"Received args={result.args}, kwargs={result.kwargs}, details={result.details}")
 ```
 
@@ -179,7 +179,7 @@ async def invocation_handler(invocation: Invocation):
 from xconn.async_session import AsyncSession
 
 async def example_call(session: AsyncSession):
-    result = await session.call("io.xconn.example", "1", "2", key="value")
+    result = await session.call("io.xconn.example", ["1", "2"], {"key": "value"})
     print(f"Received args={result.args}, kwargs={result.kwargs}, details={result.details}")
 ```
 
