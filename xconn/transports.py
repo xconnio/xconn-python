@@ -42,6 +42,20 @@ def create_ping():
 
     return payload, ping_header, created_at
 
+def _recv_exactly(sock, n: int) -> bytes:
+    """Receive exactly n bytes from a socket or raise if connection breaks."""
+    chunks = []
+    received = 0
+    while received < n:
+        chunk = sock.recv(n - received)
+        if not chunk:
+            raise ConnectionError("Socket connection broken")
+
+        chunks.append(chunk)
+        received += len(chunk)
+
+    return b"".join(chunks)
+
 
 class RawSocketTransport(ITransport):
     def __init__(self, sock: socket.socket):
@@ -68,7 +82,7 @@ class RawSocketTransport(ITransport):
 
         sock.sendall(hs_request.to_bytes())
 
-        hs_response_bytes = sock.recv(RAW_SOCKET_HEADER_LENGTH)
+        hs_response_bytes = _recv_exactly(sock, RAW_SOCKET_HEADER_LENGTH)
         hs_response = Handshake.from_bytes(hs_response_bytes)
 
         if hs_request.protocol != hs_response.protocol:
@@ -77,20 +91,20 @@ class RawSocketTransport(ITransport):
         return RawSocketTransport(sock)
 
     def read(self) -> str | bytes:
-        msg_header_bytes = self._sock.recv(RAW_SOCKET_HEADER_LENGTH)
+        msg_header_bytes = _recv_exactly(self._sock, RAW_SOCKET_HEADER_LENGTH)
         msg_header = MessageHeader.from_bytes(msg_header_bytes)
 
         if msg_header.kind == MSG_TYPE_WAMP:
-            return self._sock.recv(msg_header.length)
+            return _recv_exactly(self._sock, msg_header.length)
         elif msg_header.kind == MSG_TYPE_PING:
-            ping_payload = self._sock.recv(msg_header.length)
+            ping_payload = _recv_exactly(self._sock, msg_header.length)
             pong = MessageHeader(MSG_TYPE_PONG, msg_header.length)
             self._sock.sendall(pong.to_bytes())
             self._sock.sendall(ping_payload)
 
             return self.read()
         elif msg_header.kind == MSG_TYPE_PONG:
-            pong_payload = self._sock.recv(msg_header.length)
+            pong_payload = _recv_exactly(self._sock, msg_header.length)
             pending_ping = self._pending_pings.pop(pong_payload, None)
             if pending_ping is not None:
                 received_at = time.time() * 1000
