@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xconn"
-version = "0.4.3"
+version = "0.5.0"
 authors = [
   {name="Omer Akram", email="omer@xconn.io"},
   {name="Mahad Munir", email="mahad@xconn.io"},
