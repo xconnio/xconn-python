@@ -73,10 +73,12 @@ class Component(IComponent):
         self._session: Session | AsyncSession = None
 
         for name, method in inspect.getmembers(self.__class__, inspect.isfunction):
-            if getattr(method, "__xconn_procedure__", False):
-                self._procedures[name] = method.__get__(self)
-            elif getattr(method, "__xconn_topic__", False):
-                self._topics[name] = method.__get__(self)
+            if getattr(method, "__xconn_procedure__", None):
+                procedure = method.__xconn_procedure__
+                self._procedures[procedure] = method.__get__(self)
+            elif getattr(method, "__xconn_topic__", None):
+                topic = method.__xconn_topic__
+                self._topics[topic] = method.__get__(self)
 
     def set_session(self, session: Session | AsyncSession):
         self._session = session

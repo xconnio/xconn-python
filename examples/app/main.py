@@ -39,7 +39,7 @@ async def included_event(data: InData) -> None:
 
 
 class Test(Component):
-    @register("hello", response_model=OutData)
+    @register("io.xconn.hello", response_model=OutData)
     async def hello(self):
         return (
             "john",
@@ -47,7 +47,7 @@ class Test(Component):
             40,
         )
 
-    @subscribe("topic")
+    @subscribe("io.xconn.topic")
     async def topic(self, event: Event) -> None:
         print("TOPIC", event)
 
