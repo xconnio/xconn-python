@@ -222,7 +222,7 @@ def _assemble_base_metadata(
             )
     elif request_model is not None:
         for key, value in request_model.model_fields.items():
-            if value.is_required:
+            if value.is_required():
                 request_args.append(key)
             else:
                 request_kwargs.append(key)
@@ -232,7 +232,7 @@ def _assemble_base_metadata(
         # let's create a dynamic pydantic model based on the procedure signature
         request_model = create_model_from_func(func)
         for key, value in request_model.model_fields.items():
-            if value.is_required:
+            if value.is_required():
                 request_args.append(key)
             else:
                 request_kwargs.append(key)
@@ -263,7 +263,7 @@ def _validate_procedure_function(func: callable, uri: str) -> ProcedureMetadata:
     response_kwargs = []
     if response_model is not None:
         for key, value in response_model.model_fields.items():
-            if value.is_required:
+            if value.is_required():
                 response_args.append(key)
             else:
                 response_kwargs.append(key)
