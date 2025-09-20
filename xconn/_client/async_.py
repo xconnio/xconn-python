@@ -25,7 +25,7 @@ from xconn._client.helpers import (
     import_app,
 )
 from xconn._client.types import ClientConfig
-from xconn.async_session import AsyncSession
+from xconn.async_session import AsyncSession, Registration, Subscription
 from xconn.types import Event, Invocation, Result, RegisterOptions, InvokeOptions
 from xconn.utils import run
 
@@ -35,9 +35,11 @@ async def _setup(app: App, session: AsyncSession):
 
     for uri, func in app.procedures.items():
         await register_async(session, uri, func)
+        print(f"Registered procedure {uri}")
 
     for uri, func in app.topics.items():
         await subscribe_async(session, uri, func)
+        print(f"Subscribed topic {uri}")
 
 
 async def _connect_async(app: App, config: ClientConfig, start_router: bool = False):
@@ -109,7 +111,7 @@ async def resolve_dependencies(meta: ProcedureMetadata) -> AsyncGenerator:
         yield result
 
 
-async def register_async(session: AsyncSession, uri: str, func: callable):
+async def register_async(session: AsyncSession, uri: str, func: callable) -> Registration:
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for procedure '{uri}' must be a coroutine")
 
@@ -149,11 +151,10 @@ async def register_async(session: AsyncSession, uri: str, func: callable):
 
             return _handle_result(result, meta.response_model, meta.response_args)
 
-    await session.register(uri, _handle_invocation, options=meta.register_options)
-    print(f"Registered procedure {uri}")
+    return await session.register(uri, _handle_invocation, options=meta.register_options)
 
 
-async def subscribe_async(session: AsyncSession, topic: str, func: callable):
+async def subscribe_async(session: AsyncSession, topic: str, func: callable) -> Subscription:
     if not inspect.iscoroutinefunction(func):
         raise RuntimeError(f"function {func.__name__} for topic '{topic}' must be a coroutine")
 
@@ -186,5 +187,4 @@ async def subscribe_async(session: AsyncSession, topic: str, func: callable):
                 input_data = {meta.positional_field_name: event}
                 await func(**input_data, **deps, **details)
 
-    await session.subscribe(topic, _handle_event, options=meta.subscribe_options)
-    print(f"Subscribed topic {topic}")
+    return await session.subscribe(topic, _handle_event, options=meta.subscribe_options)
