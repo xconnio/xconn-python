@@ -94,8 +94,9 @@ class AsyncSession:
 
         self._disconnect_callback: list[Callable[[], Awaitable[None]] | None] = []
 
-        loop = get_event_loop()
-        self.wait_task = loop.create_task(self._wait())
+        self._tasks: set[asyncio.Task[None]] = set()
+        self._loop = get_event_loop()
+        self.wait_task = self._loop.create_task(self._wait())
 
     async def _wait(self):
         while await self._base_session.transport.is_connected():
@@ -105,7 +106,11 @@ class AsyncSession:
                 print(e)
                 break
 
-            await self._process_incoming_message(self._session.receive(data))
+            task = self._loop.create_task(
+                self._process_incoming_message(self._session.receive(data))
+            )
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
 
         for callback in self._disconnect_callback:
             await callback()
