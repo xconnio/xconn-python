@@ -106,9 +106,7 @@ class AsyncSession:
                 print(e)
                 break
 
-            task = self._loop.create_task(
-                self._process_incoming_message(self._session.receive(data))
-            )
+            task = self._loop.create_task(self._process_incoming_message(self._session.receive(data)))
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
 
