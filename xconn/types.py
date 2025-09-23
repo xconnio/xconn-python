@@ -7,7 +7,7 @@ from asyncio import Future
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Any, Union
 
 from aiohttp import web
 from wampproto import messages, joiner, serializers
@@ -37,6 +37,9 @@ class Invocation:
     args: list | None
     kwargs: dict | None
     details: dict | None
+    send_progress: Union[
+        Callable[[list[Any], dict[str, Any]], None], Callable[[list[Any], dict[str, Any]], Awaitable[None]], None
+    ] = None
 
 
 @dataclass
