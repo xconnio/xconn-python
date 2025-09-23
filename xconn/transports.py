@@ -42,6 +42,7 @@ def create_ping():
 
     return payload, ping_header, created_at
 
+
 def _recv_exactly(sock, n: int) -> bytes:
     """Receive exactly n bytes from a socket or raise if connection breaks."""
     chunks = []

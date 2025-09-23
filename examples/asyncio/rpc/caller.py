@@ -25,7 +25,7 @@ async def main() -> None:
     await caller.call(test_procedure_echo, kwargs={"name": "john"})
 
     # call procedure "io.xconn.result" with args & kwargs
-    await caller.call(test_procedure_echo, [1, 2], kwargs={"name":"john"})
+    await caller.call(test_procedure_echo, [1, 2], kwargs={"name": "john"})
 
     sum_result = await caller.call(test_procedure_sum, [2, 2, 6])
     print(f"Sum={sum_result.args[0]}")
