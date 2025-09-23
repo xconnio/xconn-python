@@ -45,13 +45,23 @@ class SubscribeRequest:
 
 
 class Subscription:
-    def __init__(self, subscription_id: int, session: AsyncSession):
+    def __init__(
+        self, subscription_id: int, session: AsyncSession, event_handler: Callable[[types.Event], Awaitable[None]]
+    ):
         self.subscription_id = subscription_id
         self._session = session
+        self._event_handler = event_handler
 
     async def unsubscribe(self) -> None:
         if not await self._session._base_session.transport.is_connected():
             raise Exception("cannot unsubscribe topic: session not established")
+
+        subscriptions = self._session._subscriptions.get(self.subscription_id, None)
+        if subscriptions is not None:
+            subscriptions.pop(self, None)
+            if len(subscriptions) != 0:
+                self._session._subscriptions[self.subscription_id] = subscriptions
+                return None
 
         unsubscribe = messages.Unsubscribe(
             messages.UnsubscribeFields(self._session._idgen.next(), self.subscription_id)
@@ -79,7 +89,7 @@ class AsyncSession:
         # PubSub data structures
         self._publish_requests: dict[int, Future[None]] = {}
         self._subscribe_requests: dict[int, SubscribeRequest] = {}
-        self._subscriptions: dict[int, Callable[[types.Event], Awaitable[None]]] = {}
+        self._subscriptions: dict[int, dict[Subscription, Subscription]] = {}
         self._unsubscribe_requests: dict[int, types.UnsubscribeRequest] = {}
 
         self._goodbye_request = Future()
@@ -158,8 +168,14 @@ class AsyncSession:
                 await self._base_session.send(data)
         elif isinstance(msg, messages.Subscribed):
             request = self._subscribe_requests.pop(msg.request_id)
-            self._subscriptions[msg.subscription_id] = request.endpoint
-            request.future.set_result(Subscription(msg.subscription_id, self))
+            sub = Subscription(msg.subscription_id, self, request.endpoint)
+            subscriptions = self._subscriptions.get(msg.subscription_id, None)
+            if subscriptions is None:
+                self._subscriptions[msg.subscription_id] = {sub: sub}
+            else:
+                subscriptions[sub] = sub
+
+            request.future.set_result(sub)
         elif isinstance(msg, messages.Unsubscribed):
             request = self._unsubscribe_requests.pop(msg.request_id)
             del self._subscriptions[request.subscription_id]
@@ -168,9 +184,11 @@ class AsyncSession:
             request = self._publish_requests.pop(msg.request_id)
             request.set_result(None)
         elif isinstance(msg, messages.Event):
-            endpoint = self._subscriptions[msg.subscription_id]
             try:
-                await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+                subscriptions = self._subscriptions[msg.subscription_id]
+                event = types.Event(msg.args, msg.kwargs, msg.details)
+                for subscription in subscriptions.keys():
+                    await subscription._event_handler(event)
             except Exception as e:
                 print(e)
         elif isinstance(msg, messages.Error):
