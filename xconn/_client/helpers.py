@@ -89,10 +89,12 @@ def create_model_from_func(func):
     fields = {}
 
     for param_name, param in signature.parameters.items():
+        if isinstance(param.default, Depends):
+            continue
+
         annotated_type = type_hints.get(param_name)
         if (
             is_subclass_of_any(annotated_type, CallDetails)
-            or is_subclass_of_any(annotated_type, Depends)
             or is_subclass_of_any(annotated_type, EventDetails)
         ):
             continue
