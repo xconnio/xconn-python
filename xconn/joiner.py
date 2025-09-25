@@ -70,12 +70,14 @@ class RawSocketJoiner:
         self,
         authenticator: auth.IClientAuthenticator = None,
         serializer: serializers.Serializer = serializers.JSONSerializer(),
+        config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
         self._serializer = serializer
+        self._config = config
 
     def join(self, uri: str, realm: str) -> types.BaseSession:
-        transport = RawSocketTransport.connect(uri, helpers.get_rs_protocol(self._serializer))
+        transport = RawSocketTransport.connect(uri, helpers.get_rs_protocol(self._serializer), config=self._config)
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         transport.write(j.send_hello())
@@ -94,12 +96,16 @@ class AsyncRawSocketJoiner:
         self,
         authenticator: auth.IClientAuthenticator = None,
         serializer: serializers.Serializer = serializers.JSONSerializer(),
+        config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
         self._serializer = serializer
+        self._config = config
 
     async def join(self, uri: str, realm: str) -> types.AsyncBaseSession:
-        transport = await AsyncRawSocketTransport.connect(uri, helpers.get_rs_protocol(self._serializer))
+        transport = await AsyncRawSocketTransport.connect(
+            uri, helpers.get_rs_protocol(self._serializer), config=self._config
+        )
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         await transport.write(j.send_hello())
 

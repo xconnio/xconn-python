@@ -51,7 +51,7 @@ def _connect_sync(app: App, config: ClientConfig, start_router: bool = False, di
         wait_for_server(ws_url.hostname, ws_url.port, 5)
 
     auth = select_authenticator(config)
-    client = Client(authenticator=auth, ws_config=config.websocket_config)
+    client = Client(authenticator=auth, config=config.websocket_config)
 
     def wait_and_connect(previous_wait: float = INITIAL_WAIT):
         next_wait = min(random.uniform(INITIAL_WAIT, previous_wait * 3), MAX_WAIT)
