@@ -13,11 +13,11 @@ class Client:
         self,
         authenticator: auth.IClientAuthenticator = auth.AnonymousAuthenticator(""),
         serializer: serializers.Serializer = serializers.JSONSerializer(),
-        ws_config: types.WebsocketConfig = types.WebsocketConfig(),
+        config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
         self._serializer = serializer
-        self._ws_config = ws_config
+        self._config = config
 
     def connect(
         self,
@@ -27,7 +27,7 @@ class Client:
         disconnect_callback: Callable[[], None] | None = None,
     ) -> Session:
         return connect(
-            uri, realm, self._authenticator, self._serializer, self._ws_config, connect_callback, disconnect_callback
+            uri, realm, self._authenticator, self._serializer, self._config, connect_callback, disconnect_callback
         )
 
 
@@ -36,13 +36,13 @@ def connect(
     realm: str,
     authenticator: auth.IClientAuthenticator = None,
     serializer: serializers.Serializer = serializers.CBORSerializer(),
-    ws_config: types.WebsocketConfig = types.WebsocketConfig(),
+    config: types.TransportConfig = types.TransportConfig(),
     connect_callback: Callable[[], None] | None = None,
     disconnect_callback: Callable[[], None] | None = None,
 ) -> Session:
     parsed = urlparse(uri)
     if parsed.scheme == "ws" or parsed.scheme == "wss" or parsed.scheme == "unix+ws":
-        j = WebsocketsJoiner(authenticator, serializer, ws_config)
+        j = WebsocketsJoiner(authenticator, serializer, config)
     elif (
         parsed.scheme == "rs"
         or parsed.scheme == "rss"
@@ -51,7 +51,7 @@ def connect(
         or parsed.scheme == "unix"
         or parsed.scheme == "unix+rs"
     ):
-        j = RawSocketJoiner(authenticator, serializer)
+        j = RawSocketJoiner(authenticator, serializer, config)
     else:
         raise RuntimeError(f"Unsupported scheme {parsed.scheme}")
 

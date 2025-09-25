@@ -23,7 +23,7 @@ from websockets.sync.connection import Connection
 from websockets.asyncio.client import connect as async_connect, unix_connect as async_unix_connect
 from websockets.asyncio.client import ClientConnection
 
-from xconn.types import IAsyncTransport, ITransport, WebsocketConfig
+from xconn.types import IAsyncTransport, ITransport, WebsocketConfig, TransportConfig
 
 # Applies to handshake and message itself.
 RAW_SOCKET_HEADER_LENGTH = 4
@@ -67,12 +67,17 @@ class RawSocketTransport(ITransport):
 
     @staticmethod
     def connect(
-        uri: str, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
+        uri: str,
+        protocol: int = SERIALIZER_TYPE_CBOR,
+        max_msg_size: int = DEFAULT_MAX_MSG_SIZE,
+        config: TransportConfig = TransportConfig(),
     ) -> "RawSocketTransport":
         parsed = urlparse(uri)
 
         if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
             sock = socket.create_connection((parsed.hostname, parsed.port))
+            if config.tcp_nodelay:
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         elif parsed.scheme == "unix" or parsed.scheme == "unix+rs":
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.connect(parsed.path)
@@ -156,12 +161,17 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
     @staticmethod
     async def connect(
-        uri: str, protocol: int = SERIALIZER_TYPE_CBOR, max_msg_size: int = DEFAULT_MAX_MSG_SIZE
+        uri: str,
+        protocol: int = SERIALIZER_TYPE_CBOR,
+        max_msg_size: int = DEFAULT_MAX_MSG_SIZE,
+        config: TransportConfig = TransportConfig(),
     ) -> "AsyncRawSocketTransport":
         parsed = urlparse(uri)
 
         if parsed.scheme == "rs" or parsed.scheme == "rss" or parsed.scheme == "tcp" or parsed.scheme == "tcps":
             reader, writer = await asyncio.open_connection(parsed.hostname, parsed.port)
+            if config.tcp_nodelay and (sock := writer.get_extra_info("socket")):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         elif parsed.scheme == "unix" or parsed.scheme == "unix+rs":
             reader, writer = await asyncio.open_unix_connection(parsed.path)
         else:

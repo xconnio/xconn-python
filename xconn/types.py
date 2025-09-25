@@ -47,7 +47,7 @@ class Event:
 
 
 @dataclass
-class WebsocketConfig:
+class TransportConfig:
     # max wait time for connection to be established
     open_timeout: float | None = 10
 
@@ -59,6 +59,13 @@ class WebsocketConfig:
 
     # max wait time for closing the connection
     close_timeout: float | None = 10
+
+    # whether to enable TCP_NODELAY flag on the socket
+    tcp_nodelay: bool = False
+
+
+# deprecated, rename all usage to TransportConfig
+WebsocketConfig = TransportConfig
 
 
 class ITransport:
