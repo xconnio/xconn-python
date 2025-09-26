@@ -1,14 +1,13 @@
 # XConn
-Real-time application development framework for Python. XConn enables backend APIs that are FAST, support PubSub and
+Real-time application development framework for Python. XConn enables backend APIs that are fast, support PubSub and
 are secure.
 
 # Getting started
 Install xconn from pypi
 ```shell
-om26er@Home-PC:~$ uv venv
-om26er@Home-PC:~$ uv pip install git+ssh://git@github.com/xconnio/xconn-python.git
-om26er@Home-PC:~$ source .venv/bin/activate
-(xconn-python) om26er@Home-PC:~$
+uv venv
+uv pip install git+ssh://git@github.com/xconnio/xconn-python.git
+source .venv/bin/activate
 ```
 
 Save the below code in sample.py
