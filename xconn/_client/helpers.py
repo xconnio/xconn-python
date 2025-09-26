@@ -5,7 +5,6 @@ import socket
 import asyncio
 from dataclasses import dataclass
 import inspect
-import json
 import importlib
 import sys
 from typing import (
@@ -391,10 +390,10 @@ def _handle_result(
 
     if isinstance(result, list):
         # FIXME: catch ValidationError and return ApplicationError
-        return Result(args=[json.loads(response_model.from_orm(item).json()) for item in result])
+        return Result(args=[response_model.from_orm(item).model_dump() for item in result])
 
     # FIXME: catch ValidationError and return ApplicationError
-    return Result(args=[json.loads(response_model.from_orm(result).json())])
+    return Result(args=[response_model.from_orm(result).model_dump()])
 
 
 def _validate_topic_function(func: callable, uri: str):
