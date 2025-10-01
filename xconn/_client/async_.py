@@ -41,6 +41,22 @@ async def _setup(app: App, session: AsyncSession):
         await subscribe_async(session, uri, func)
         print(f"Subscribed topic {uri}")
 
+    if app.schema_procedure is not None and app.schema_procedure != "":
+        docs = []
+
+        for uri, func in app.procedures.items():
+            docs.append(collect_docs(uri, func, "procedure"))
+
+        for uri, func in app.topics.items():
+            docs.append(collect_docs(uri, func, "topic"))
+
+        async def get_schema(_: Invocation) -> Result:
+            return Result(args=docs)
+
+        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
+        await session.register(app.schema_procedure, get_schema, options=options)
+        print(f"serving schema at procedure {app.schema_procedure}")
+
 
 async def _connect_async(app: App, config: ClientConfig, start_router: bool = False):
     if start_router:
@@ -73,22 +89,6 @@ async def _connect_async(app: App, config: ClientConfig, start_router: bool = Fa
 
     session = await client.connect(config.url, config.realm, on_connect, on_disconnect)
     await _setup(app, session)
-
-    if app.schema_procedure is not None and app.schema_procedure != "":
-        docs = []
-
-        for uri, func in app.procedures.items():
-            docs.append(collect_docs(uri, func, "procedure"))
-
-        for uri, func in app.topics.items():
-            docs.append(collect_docs(uri, func, "topic"))
-
-        async def get_schema(_: Invocation) -> Result:
-            return Result(args=docs)
-
-        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
-        await session.register(app.schema_procedure, get_schema, options=options)
-        print(f"serving schema at procedure {app.schema_procedure}")
 
 
 def connect_async(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
