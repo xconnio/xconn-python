@@ -6,6 +6,7 @@ from concurrent.futures import Future as ConcurrentFuture
 from dataclasses import dataclass
 import time
 from typing import Sequence
+import threading
 from urllib.parse import urlparse
 
 from wampproto.transports.rawsocket import (
@@ -62,8 +63,8 @@ class RawSocketTransport(ITransport):
     def __init__(self, sock: socket.socket):
         super().__init__()
         self._sock = sock
-
         self._pending_pings: dict[bytes, PendingPing] = {}
+        self._write_lock = threading.Lock()
 
     @staticmethod
     def connect(
@@ -122,13 +123,11 @@ class RawSocketTransport(ITransport):
 
     def write(self, data: str | bytes):
         msg_header = MessageHeader(MSG_TYPE_WAMP, len(data))
+        payload = data.encode() if isinstance(data, str) else data
 
-        self._sock.sendall(msg_header.to_bytes())
-
-        if isinstance(data, str):
-            self._sock.sendall(data.encode())
-        else:
-            self._sock.sendall(data)
+        with self._write_lock:  # ensure exclusive access
+            self._sock.sendall(msg_header.to_bytes())
+            self._sock.sendall(payload)
 
     def close(self):
         self._sock.close()
