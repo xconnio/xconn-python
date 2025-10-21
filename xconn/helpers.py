@@ -1,4 +1,6 @@
-from wampproto import serializers
+import threading
+
+from wampproto import serializers, idgen
 from wampproto.messages import Error
 from wampproto.transports.rawsocket import SERIALIZER_TYPE_JSON, SERIALIZER_TYPE_MSGPACK, SERIALIZER_TYPE_CBOR
 
@@ -79,3 +81,18 @@ def exception_from_error(error: Error):
         exc.kwargs = error.kwargs
 
     return exc
+
+
+class SessionScopeIDGenerator:
+    def __init__(self):
+        super().__init__()
+        self.id: int = 0
+        self._lock = threading.Lock()
+
+    def next(self):
+        with self._lock:
+            if self.id >= idgen.ID_MAX:
+                self.id = 0
+
+            self.id += 1
+            return self.id

@@ -5,11 +5,11 @@ from threading import Thread
 from typing import Callable, Any
 from dataclasses import dataclass
 
-from wampproto import messages, idgen, session, uris
+from wampproto import messages, session, uris
 
 from xconn import types, exception, uris as xconn_uris
 from xconn.exception import ApplicationError
-from xconn.helpers import exception_from_error
+from xconn.helpers import exception_from_error, SessionScopeIDGenerator
 
 
 @dataclass
@@ -81,7 +81,7 @@ class Session:
         self._goodbye_request = Future()
 
         # ID generator
-        self._idgen = idgen.SessionScopeIDGenerator()
+        self._idgen = SessionScopeIDGenerator()
 
         self._base_session = base_session
 
