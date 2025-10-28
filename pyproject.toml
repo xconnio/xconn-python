@@ -39,7 +39,7 @@ test = [
   "pytest-timeout",
 ]
 publish = ["twine", "build"]
-dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python"]
+dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python", "protobuf"]
 capnproto = [
     "wampproto-messages-capnproto@git+https://github.com/xconnio/wampproto-messages-capnproto@main#subdirectory=python"
 ]
@@ -81,6 +81,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "tests/profile_pb2.py"
 ]
 
 line-length = 120
