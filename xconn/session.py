@@ -188,6 +188,27 @@ class Session:
 
         return self._payload_codec.decode(result.args[0], return_type)
 
+    def subscribe_object(self, topic: str, event_handler: Callable[[types.Event], None], return_type: Type[TRes]):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        def _event_handler(event: types.Event):
+            if len(event.args) != 1:
+                raise ValueError("only one argument expected in event")
+
+            data = event.args[0]
+            d = self._payload_codec.decode(data, return_type)
+            event_handler(types.Event(args=[d], kwargs={}, details={}))
+
+        return self.subscribe(topic, _event_handler)
+
+    def publish_object(self, topic: str, request: TReq):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        encoded = self._payload_codec.encode(request)
+        return self.publish(topic, [encoded])
+
     def call(
         self,
         procedure: str,

@@ -5,7 +5,7 @@ from google.protobuf.message import Message
 
 from xconn.client import connect_anonymous
 from xconn import codec
-from xconn.types import Invocation, Result
+from xconn.types import Invocation, Result, Event
 from tests.profile_pb2 import ProfileCreate, ProfileGet
 
 
@@ -84,5 +84,19 @@ def test_protobuf_codec():
     assert result.age == 25
     assert result.id == "123"
     assert result.created_at == "2025-10-28T17:00:00Z"
+
+    session.leave()
+
+
+def test_pubsub_object():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(Base64Codec())
+
+    def event_handler(event: Event):
+        assert event.args[0] == "hello"
+
+    session.subscribe_object("io.xconn.object", event_handler, String)
+
+    session.publish_object("io.xconn.object", String("hello"))
 
     session.leave()
