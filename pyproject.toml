@@ -81,7 +81,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    "tests/profile_pb2.py"
+    "tests/schemas/*"
 ]
 
 line-length = 120

@@ -180,14 +180,20 @@ class Session:
     def set_payload_codec(self, codec: Codec) -> None:
         self._payload_codec = codec
 
-    def call_object(self, procedure: str, request: TReq, return_type: Type[TRes] = None) -> TReq | None:
+    def call_object(self, procedure: str, request: TReq = None, return_type: Type[TRes] = None) -> TRes | None:
         if self._payload_codec is None:
             raise ValueError("no payload codec set")
 
-        encoded = self._payload_codec.encode(request)
-        result = self.call(procedure, [encoded])
+        if request is not None:
+            encoded = self._payload_codec.encode(request)
+            result = self.call(procedure, [encoded])
+        else:
+            result = self.call(procedure)
 
-        return self._payload_codec.decode(result.args[0], return_type)
+        if return_type is not None:
+            return self._payload_codec.decode(result.args[0], return_type)
+
+        return None
 
     def subscribe_object(self, topic: str, event_handler: Callable[[types.Event], None], return_type: Type[TRes]):
         if self._payload_codec is None:
