@@ -100,3 +100,82 @@ def test_pubsub_object():
     session.publish_object("io.xconn.object", String("hello"))
 
     session.leave()
+
+
+def test_register_object_one_param_with_return_type():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(ProtobufCodec())
+
+    def create_profile_handler(prof: ProfileCreate) -> ProfileGet:
+        return ProfileGet(
+            id="356",
+            username=prof.username,
+            email=prof.email,
+            age=prof.age,
+            created_at="2025-10-30T17:00:00Z",
+        )
+
+    session.register_object("io.xconn.profile.create", create_profile_handler)
+
+    profile_create = ProfileCreate(username="john", email="john@xconn.io", age=25)
+    result = session.call("io.xconn.profile.create", [profile_create.SerializeToString()])
+
+    profile = ProfileGet()
+    profile.ParseFromString(result.args[0])
+
+    assert profile.id == "356"
+    assert profile.username == "john"
+    assert profile.email == "john@xconn.io"
+    assert profile.age == 25
+    assert profile.created_at == "2025-10-30T17:00:00Z"
+
+    session.leave()
+
+
+def test_register_object_no_param():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(ProtobufCodec())
+
+    options = {"flag": False}
+
+    def invocation_handler() -> None:
+        options["flag"] = True
+
+    session.register_object("io.xconn.param.none", invocation_handler)
+
+    result = session.call("io.xconn.param.none")
+
+    assert options["flag"] is True
+    assert result.args is None
+    assert result.kwargs is None
+
+    session.leave()
+
+
+def test_register_object_no_param_with_return():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(ProtobufCodec())
+
+    def get_profile_handler() -> ProfileGet:
+        return ProfileGet(
+            id="636",
+            username="admin",
+            email="admin@xconn.io",
+            age=30,
+            created_at="2025-10-30T17:00:00Z",
+        )
+
+    session.register_object("io.xconn.profile.get", get_profile_handler)
+
+    result = session.call("io.xconn.profile.get")
+
+    profile = ProfileGet()
+    profile.ParseFromString(result.args[0])
+
+    assert profile.id == "636"
+    assert profile.username == "admin"
+    assert profile.email == "admin@xconn.io"
+    assert profile.age == 30
+    assert profile.created_at == "2025-10-30T17:00:00Z"
+
+    session.leave()

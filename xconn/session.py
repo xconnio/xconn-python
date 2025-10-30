@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from concurrent.futures import Future
 from threading import Thread
 from typing import Callable, Any, TypeVar, Type
@@ -208,6 +209,48 @@ class Session:
 
         encoded = self._payload_codec.encode(request)
         return self.publish(topic, [encoded])
+
+    def register_object(
+        self,
+        procedure: str,
+        invocation_handler: Callable[[TReq], TRes | None] | Callable[[], TRes | None],
+    ):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        sig = inspect.signature(invocation_handler)
+
+        params = list(sig.parameters.values())
+        if len(params) > 1:
+            raise ValueError("invocation handler must accept 0 or 1 argument")
+
+        if len(params) == 1:
+            # get parameter's type hint
+            param_type = params[0].annotation
+            if param_type is inspect._empty:
+                raise TypeError("invocation handler parameter must have a type annotation")
+        else:
+            param_type = None
+
+        def _invocation_handler(invocation: types.Invocation):
+            request_obj = None
+            if param_type is not None:
+                if len(invocation.args) != 1:
+                    raise ValueError("only one argument expected in invocation")
+
+                request_obj = self._payload_codec.decode(invocation.args[0], param_type)
+
+            result = invocation_handler(request_obj) if param_type is not None else invocation_handler()
+
+            # no return type in invocation handler
+            if sig.return_annotation is inspect._empty or result is None:
+                return None
+
+            encoded = self._payload_codec.encode(result)
+
+            return types.Result(args=[encoded])
+
+        return self.register(procedure, _invocation_handler)
 
     def call(
         self,
