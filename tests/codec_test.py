@@ -1,6 +1,8 @@
 import base64
-from typing import Type
+from pathlib import Path
+from typing import Type, TypeVar, Any
 
+import capnp
 from google.protobuf.message import Message
 
 from xconn.client import connect_anonymous
@@ -177,5 +179,111 @@ def test_register_object_no_param_with_return():
     assert profile.email == "admin@xconn.io"
     assert profile.age == 30
     assert profile.created_at == "2025-10-30T17:00:00Z"
+
+    session.leave()
+
+
+T = TypeVar("T")
+SCHEMA_PATH = Path(__file__).parent / "user.capnp"
+user_capnp = capnp.load(str(SCHEMA_PATH))
+
+UserCreate = user_capnp.UserCreate
+UserGet = user_capnp.UserGet
+
+
+class CapnpProtoCodec(codec.Codec[T]):
+    def name(self) -> str:
+        return "capnproto"
+
+    def encode(self, obj: Any) -> bytes:
+        return obj.to_bytes_packed()
+
+    def decode(self, data: bytes, out_type: Type[T]) -> T:
+        return out_type.from_bytes_packed(data)
+
+
+def test_register_object_capnproto():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(CapnpProtoCodec())
+
+    def create_handler(user_create: UserCreate) -> UserGet:
+        user_get = UserGet.new_message()
+        user_get.id = 999
+        user_get.name = user_create.name
+        user_get.email = user_create.email
+        user_get.age = user_create.age
+        user_get.isAdmin = False
+
+        return user_get
+
+    session.register_object("io.xconn.user.create", create_handler)
+
+    new_user = UserCreate.new_message()
+    new_user.name = "john"
+    new_user.email = "john@xconn.io"
+    new_user.age = 35
+
+    result = session.call("io.xconn.user.create", [new_user.to_bytes_packed()])
+    user = UserGet.from_bytes_packed(result.args[0])
+
+    assert user.id == 999
+    assert user.name == "john"
+    assert user.email == "john@xconn.io"
+    assert user.age == 35
+    assert not user.isAdmin
+
+    session.leave()
+
+
+def test_call_object_capnproto():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(CapnpProtoCodec())
+
+    def invocation_handler(inv: Invocation) -> Result:
+        user_create = UserCreate.from_bytes_packed(inv.args[0])
+
+        user_get = UserGet.new_message()
+        user_get.id = 78
+        user_get.name = user_create.name
+        user_get.email = user_create.email
+        user_get.age = user_create.age
+        user_get.isAdmin = True
+
+        return Result(args=[user_get.to_bytes_packed()])
+
+    session.register("io.xconn.user.create", invocation_handler)
+    new_user = UserCreate.new_message()
+    new_user.name = "alice"
+    new_user.email = "alice@xconn.io"
+    new_user.age = 23
+
+    result: UserGet = session.call_object("io.xconn.user.create", new_user, UserGet)
+    assert result.id == 78
+    assert result.name == "alice"
+    assert result.email == "alice@xconn.io"
+    assert result.age == 23
+    assert result.isAdmin
+
+    session.leave()
+
+
+def test_pubsub_capnproto():
+    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
+    session.set_payload_codec(CapnpProtoCodec())
+
+    def event_handler(event: Event):
+        user: UserGet = event.args[0]
+        assert user.name == "alice"
+        assert user.email == "alice@xconn.io"
+        assert user.age == 21
+
+    session.subscribe_object("io.xconn.object", event_handler, UserCreate)
+
+    new_user = UserCreate.new_message()
+    new_user.name = "alice"
+    new_user.email = "alice@xconn.io"
+    new_user.age = 21
+
+    session.publish_object("io.xconn.object", new_user)
 
     session.leave()

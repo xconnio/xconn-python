@@ -39,7 +39,7 @@ test = [
   "pytest-timeout",
 ]
 publish = ["twine", "build"]
-dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python", "protobuf"]
+dev = ["mkdocs-material[imaging]", "wampproto@git+https://github.com/xconnio/wampproto-python", "protobuf", "pycapnp"]
 capnproto = [
     "wampproto-messages-capnproto@git+https://github.com/xconnio/wampproto-messages-capnproto@main#subdirectory=python"
 ]
