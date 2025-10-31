@@ -24,17 +24,7 @@ class Registration:
         self._session = session
 
     def unregister(self) -> None:
-        if not self._session._base_session.transport.is_connected():
-            raise Exception("cannot unregister procedure: session not established")
-
-        unregister = messages.Unregister(messages.UnregisterFields(self._session._idgen.next(), self.registration_id))
-        data = self._session._session.send_message(unregister)
-
-        f: Future = Future()
-        self._session._unregister_requests[unregister.request_id] = types.UnregisterRequest(f, self.registration_id)
-        self._session._base_session.send(data)
-
-        f.result()
+        self._session._unregister(self)
 
 
 @dataclass
@@ -49,19 +39,7 @@ class Subscription:
         self._session = session
 
     def unsubscribe(self) -> None:
-        if not self._session._base_session.transport.is_connected():
-            raise Exception("cannot unsubscribe topic: session not established")
-
-        unsubscribe = messages.Unsubscribe(
-            messages.UnsubscribeFields(self._session._idgen.next(), self.subscription_id)
-        )
-        data = self._session._session.send_message(unsubscribe)
-
-        f: Future = Future()
-        self._session._unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, self.subscription_id)
-        self._session._base_session.send(data)
-
-        f.result()
+        self._session._unsubscribe(self)
 
 
 class Session:
@@ -252,6 +230,19 @@ class Session:
 
         return f.result()
 
+    def _unregister(self, reg: Registration) -> None:
+        if not self._base_session.transport.is_connected():
+            raise Exception("cannot unregister procedure: session not established")
+
+        unregister = messages.Unregister(messages.UnregisterFields(self._idgen.next(), reg.registration_id))
+        data = self._session.send_message(unregister)
+
+        f: Future = Future()
+        self._unregister_requests[unregister.request_id] = types.UnregisterRequest(f, reg.registration_id)
+        self._base_session.send(data)
+
+        f.result()
+
     def subscribe(self, topic: str, event_handler: Callable[[types.Event], None], options: dict = None) -> Subscription:
         subscribe = messages.Subscribe(messages.SubscribeFields(self._idgen.next(), topic, options=options))
         data = self._session.send_message(subscribe)
@@ -273,6 +264,19 @@ class Session:
             return f.result()
 
         self._base_session.send(data)
+
+    def _unsubscribe(self, sub: Subscription) -> None:
+        if not self._base_session.transport.is_connected():
+            raise Exception("cannot unsubscribe topic: session not established")
+
+        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self._idgen.next(), sub.subscription_id))
+        data = self._session.send_message(unsubscribe)
+
+        f: Future = Future()
+        self._unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, sub.subscription_id)
+        self._base_session.send(data)
+
+        f.result()
 
     def leave(self):
         self._goodbye_request = Future()

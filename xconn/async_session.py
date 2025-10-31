@@ -25,17 +25,7 @@ class Registration:
         self._session = session
 
     async def unregister(self) -> None:
-        if not await self._session._base_session.transport.is_connected():
-            raise Exception("cannot unregister procedure: session not established")
-
-        unregister = messages.Unregister(messages.UnregisterFields(self._session._idgen.next(), self.registration_id))
-        data = self._session._session.send_message(unregister)
-
-        f: Future = Future()
-        self._session._unregister_requests[unregister.request_id] = types.UnregisterRequest(f, self.registration_id)
-        await self._session._base_session.send(data)
-
-        return await f
+        return await self._session._unregister(self)
 
 
 @dataclass
@@ -50,19 +40,7 @@ class Subscription:
         self._session = session
 
     async def unsubscribe(self) -> None:
-        if not await self._session._base_session.transport.is_connected():
-            raise Exception("cannot unsubscribe topic: session not established")
-
-        unsubscribe = messages.Unsubscribe(
-            messages.UnsubscribeFields(self._session._idgen.next(), self.subscription_id)
-        )
-        data = self._session._session.send_message(unsubscribe)
-
-        f: Future = Future()
-        self._session._unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, self.subscription_id)
-        await self._session._base_session.send(data)
-
-        return await f
+        return await self._session._unsubscribe(self)
 
 
 class AsyncSession:
@@ -237,6 +215,19 @@ class AsyncSession:
 
         return await f
 
+    async def _unregister(self, reg: Registration) -> None:
+        if not await self._base_session.transport.is_connected():
+            raise Exception("cannot unregister procedure: session not established")
+
+        unregister = messages.Unregister(messages.UnregisterFields(self._idgen.next(), reg.registration_id))
+        data = self._session.send_message(unregister)
+
+        f: Future = Future()
+        self._unregister_requests[unregister.request_id] = types.UnregisterRequest(f, reg.registration_id)
+        await self._base_session.send(data)
+
+        return await f
+
     async def subscribe(
         self, topic: str, event_handler: Callable[[types.Event], Awaitable[None]], options: dict | None = None
     ) -> Subscription:
@@ -265,6 +256,19 @@ class AsyncSession:
             return await f
 
         await self._base_session.send(data)
+
+    async def _unsubscribe(self, sub: Subscription) -> None:
+        if not await self._base_session.transport.is_connected():
+            raise Exception("cannot unsubscribe topic: session not established")
+
+        unsubscribe = messages.Unsubscribe(messages.UnsubscribeFields(self._idgen.next(), sub.subscription_id))
+        data = self._session.send_message(unsubscribe)
+
+        f: Future = Future()
+        self._unsubscribe_requests[unsubscribe.request_id] = types.UnsubscribeRequest(f, sub.subscription_id)
+        await self._base_session.send(data)
+
+        return await f
 
     async def leave(self) -> None:
         self._goodbye_request = Future()
