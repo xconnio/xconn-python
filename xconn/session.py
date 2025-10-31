@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from concurrent.futures import Future
 from threading import Thread
-from typing import Callable, Any, TypeVar, Type
+from typing import Callable, Any, TypeVar, Type, overload
 from dataclasses import dataclass
 
 from wampproto import messages, session, uris
@@ -180,13 +180,25 @@ class Session:
     def set_payload_codec(self, codec: Codec) -> None:
         self._payload_codec = codec
 
-    def call_object(self, procedure: str, request: TReq = None, return_type: Type[TRes] = None) -> TRes | None:
+    @overload
+    def call_object(self, procedure: str, request: TReq, return_type: Type[TRes]) -> TRes:
+        ...
+
+    @overload
+    def call_object(self, procedure: str, request: None = None, return_type: None = None) -> None:
+        ...
+
+    @overload
+    def call_object(self, procedure: str, request: None, return_type: Type[TRes]) -> TRes:
+        ...
+
+    def call_object(self, procedure: str, request: TReq = None, return_type: Type[TRes] | None = None) -> TRes | None:
         if self._payload_codec is None:
             raise ValueError("no payload codec set")
 
         if request is not None:
             encoded = self._payload_codec.encode(request)
-            result = self.call(procedure, [encoded])
+            result = self.call(procedure, args=encoded.args, kwargs=encoded.kwargs, options=encoded.details)
         else:
             result = self.call(procedure)
 

@@ -26,24 +26,32 @@ class UnsubscribeRequest:
 
 
 @dataclass
-class Result:
+class OutgoingDataMessage:
     args: list | None = None
     kwargs: dict | None = None
     details: dict | None = None
 
 
 @dataclass
-class Invocation:
+class Result(OutgoingDataMessage):
+    pass
+
+
+@dataclass
+class IncomingDataMessage:
     args: list | None
     kwargs: dict | None
     details: dict | None
 
 
 @dataclass
-class Event:
-    args: list | None
-    kwargs: dict | None
-    details: dict | None
+class Invocation(IncomingDataMessage):
+    pass
+
+
+@dataclass()
+class Event(IncomingDataMessage):
+    pass
 
 
 @dataclass

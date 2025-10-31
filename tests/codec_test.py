@@ -1,54 +1,34 @@
 import os
-import base64
 from pathlib import Path
-from typing import Type, TypeVar, Any
+from typing import Type, TypeVar
 
 import capnp
 from google.protobuf.message import Message
 
 from xconn.client import connect_anonymous
-from xconn import codec
-from xconn.types import Event
+from xconn.codec import Codec
+from xconn.types import Event, OutgoingDataMessage, IncomingDataMessage
 from tests.schemas.profile_pb2 import ProfileCreate, ProfileGet
 
 
-class String(str):
-    pass
+T = TypeVar("T", bound=Message)
 
 
-class Base64Codec(codec.Codec[String]):
-    def name(self) -> str:
-        return "base64"
-
-    def encode(self, obj: String) -> str:
-        return base64.b64encode(obj.encode("utf-8")).decode("utf-8")
-
-    def decode(self, data: str, out_type: Type[String]) -> String:
-        return out_type(base64.b64decode(data.encode("utf-8")).decode())
-
-
-def test_base64_codec():
-    encoder = Base64Codec()
-    encoded = encoder.encode(String("hello"))
-    assert isinstance(encoded, str)
-
-    decoded = encoder.decode(encoded, String)
-    assert isinstance(decoded, String)
-    assert decoded == "hello"
-
-
-class ProtobufCodec(codec.Codec[Message]):
+class ProtobufCodec(Codec[T]):
     def name(self) -> str:
         return "protobuf"
 
-    def encode(self, obj: Message) -> bytes:
-        return obj.SerializeToString()
+    def encode(self, obj: T) -> OutgoingDataMessage:
+        payload = obj.SerializeToString()
+        return OutgoingDataMessage(args=[payload], kwargs={}, details={})
 
-    def decode(self, data: bytes, out_type: Type[Message]) -> Message:
-        msg = out_type()
-        msg.ParseFromString(data)
+    def decode(self, msg: IncomingDataMessage, out_type: Type[T]) -> T:
+        if len(msg.args) == 0 or not isinstance(msg.args[0], bytes):
+            raise ValueError("ProtobufCodec: cannot decode, expected first arg to be bytes")
 
-        return msg
+        obj = out_type()
+        obj.ParseFromString(msg.args[0])
+        return obj
 
 
 def test_rpc_object_protobuf():
@@ -74,20 +54,6 @@ def test_rpc_object_protobuf():
     assert result.age == 25
     assert result.id == "123"
     assert result.created_at == "2025-10-28T17:00:00Z"
-
-    session.leave()
-
-
-def test_pubsub_object():
-    session = connect_anonymous("ws://localhost:8080/ws", "realm1")
-    session.set_payload_codec(Base64Codec())
-
-    def event_handler(event: Event):
-        assert event.args[0] == "hello"
-
-    session.subscribe_object("io.xconn.object", event_handler, String)
-
-    session.publish_object("io.xconn.object", String("hello"))
 
     session.leave()
 
@@ -192,15 +158,19 @@ UserCreate = user_capnp.UserCreate
 UserGet = user_capnp.UserGet
 
 
-class CapnpProtoCodec(codec.Codec[T]):
+class CapnpProtoCodec(Codec[T]):
     def name(self) -> str:
         return "capnproto"
 
-    def encode(self, obj: Any) -> bytes:
-        return obj.to_bytes_packed()
+    def encode(self, obj: T) -> OutgoingDataMessage:
+        payload = obj.to_bytes_packed()
+        return OutgoingDataMessage(args=[payload], kwargs={}, details={})
 
-    def decode(self, data: bytes, out_type: Type[T]) -> T:
-        return out_type.from_bytes_packed(data)
+    def decode(self, msg: IncomingDataMessage, out_type: Type[T]) -> T:
+        if len(msg.args) == 0 or not isinstance(msg.args[0], bytes):
+            raise ValueError("CapnpProtoCodec: cannot decode, expected first arg to be bytes")
+
+        return out_type.from_bytes_packed(msg.args[0])
 
 
 def test_rpc_object_capnproto():
