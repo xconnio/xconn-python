@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import inspect
 from concurrent.futures import Future
 from threading import Thread
-from typing import Callable, Any
+from typing import Callable, Any, TypeVar, Type, overload
 from dataclasses import dataclass
 
 from wampproto import messages, session, uris
 
 from xconn import types, exception, uris as xconn_uris
+from xconn.codec import Codec
 from xconn.exception import ApplicationError
 from xconn.helpers import exception_from_error, SessionScopeIDGenerator
+
+TReq = TypeVar("TReq")
+TRes = TypeVar("TRes")
 
 
 @dataclass
@@ -67,6 +72,8 @@ class Session:
         self._session = session.WAMPSession(base_session.serializer)
 
         self._disconnect_callback: list[Callable[[], None] | None] = []
+
+        self._payload_codec: Codec = None
 
         thread = Thread(target=self._wait, daemon=False)
         thread.start()
@@ -169,6 +176,99 @@ class Session:
             self._goodbye_request.set_result(None)
         else:
             raise ValueError("received unknown message")
+
+    def set_payload_codec(self, codec: Codec) -> None:
+        self._payload_codec = codec
+
+    @overload
+    def call_object(self, procedure: str, request: TReq, return_type: Type[TRes]) -> TRes:
+        ...
+
+    @overload
+    def call_object(self, procedure: str, request: None = None, return_type: None = None) -> None:
+        ...
+
+    @overload
+    def call_object(self, procedure: str, request: None, return_type: Type[TRes]) -> TRes:
+        ...
+
+    def call_object(self, procedure: str, request: TReq = None, return_type: Type[TRes] | None = None) -> TRes | None:
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        if request is not None:
+            encoded = self._payload_codec.encode(request)
+            result = self.call(procedure, args=encoded.args, kwargs=encoded.kwargs, options=encoded.details)
+        else:
+            result = self.call(procedure)
+
+        if return_type is not None:
+            return self._payload_codec.decode(result.args[0], return_type)
+
+        return None
+
+    def subscribe_object(self, topic: str, event_handler: Callable[[types.Event], None], return_type: Type[TRes]):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        def _event_handler(event: types.Event):
+            if len(event.args) != 1:
+                raise ValueError("only one argument expected in event")
+
+            data = event.args[0]
+            d = self._payload_codec.decode(data, return_type)
+            event_handler(types.Event(args=[d], kwargs={}, details={}))
+
+        return self.subscribe(topic, _event_handler)
+
+    def publish_object(self, topic: str, request: TReq):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        encoded = self._payload_codec.encode(request)
+        return self.publish(topic, [encoded])
+
+    def register_object(
+        self,
+        procedure: str,
+        invocation_handler: Callable[[TReq], TRes | None] | Callable[[], TRes | None],
+    ):
+        if self._payload_codec is None:
+            raise ValueError("no payload codec set")
+
+        sig = inspect.signature(invocation_handler)
+
+        params = list(sig.parameters.values())
+        if len(params) > 1:
+            raise ValueError("invocation handler must accept 0 or 1 argument")
+
+        if len(params) == 1:
+            # get parameter's type hint
+            param_type = params[0].annotation
+            if param_type is inspect._empty:
+                raise TypeError("invocation handler parameter must have a type annotation")
+        else:
+            param_type = None
+
+        def _invocation_handler(invocation: types.Invocation):
+            request_obj = None
+            if param_type is not None:
+                if len(invocation.args) != 1:
+                    raise ValueError("only one argument expected in invocation")
+
+                request_obj = self._payload_codec.decode(invocation.args[0], param_type)
+
+            result = invocation_handler(request_obj) if param_type is not None else invocation_handler()
+
+            # no return type in invocation handler
+            if sig.return_annotation is inspect._empty or result is None:
+                return None
+
+            encoded = self._payload_codec.encode(result)
+
+            return types.Result(args=[encoded])
+
+        return self.register(procedure, _invocation_handler)
 
     def call(
         self,
