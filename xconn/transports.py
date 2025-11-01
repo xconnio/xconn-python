@@ -29,6 +29,19 @@ from xconn.types import IAsyncTransport, ITransport, WebsocketConfig, TransportC
 # Applies to handshake and message itself.
 RAW_SOCKET_HEADER_LENGTH = 4
 
+_ASYNC_CONNECTION_ERRORS = (
+    asyncio.IncompleteReadError,
+    BrokenPipeError,
+    ConnectionResetError,
+    OSError,
+)
+
+_CONNECTION_ERRORS = (
+    BrokenPipeError,
+    ConnectionResetError,
+    OSError,
+)
+
 
 @dataclass
 class PendingPing:
@@ -63,6 +76,7 @@ class RawSocketTransport(ITransport):
     def __init__(self, sock: socket.socket):
         super().__init__()
         self._sock = sock
+        self._connected = True
         self._pending_pings: dict[bytes, PendingPing] = {}
         self._write_lock = threading.Lock()
 
@@ -97,6 +111,10 @@ class RawSocketTransport(ITransport):
 
         return RawSocketTransport(sock)
 
+    def _mark_disconnected(self, _: Exception | None):
+        if self._connected:
+            self._connected = False
+
     def read(self) -> str | bytes:
         msg_header_bytes = _recv_exactly(self._sock, RAW_SOCKET_HEADER_LENGTH)
         msg_header = MessageHeader.from_bytes(msg_header_bytes)
@@ -105,9 +123,14 @@ class RawSocketTransport(ITransport):
             return _recv_exactly(self._sock, msg_header.length)
         elif msg_header.kind == MSG_TYPE_PING:
             ping_payload = _recv_exactly(self._sock, msg_header.length)
-            pong = MessageHeader(MSG_TYPE_PONG, msg_header.length)
-            self._sock.sendall(pong.to_bytes())
-            self._sock.sendall(ping_payload)
+            pong_header = MessageHeader(MSG_TYPE_PONG, msg_header.length)
+
+            try:
+                with self._write_lock:
+                    self._sock.sendall(pong_header.to_bytes() + ping_payload)
+            except _CONNECTION_ERRORS as e:
+                self._mark_disconnected(e)
+                raise
 
             return self.read()
         elif msg_header.kind == MSG_TYPE_PONG:
@@ -122,30 +145,36 @@ class RawSocketTransport(ITransport):
             raise ValueError(f"Unsupported message type {msg_header.kind}")
 
     def write(self, data: str | bytes):
-        msg_header = MessageHeader(MSG_TYPE_WAMP, len(data))
         payload = data.encode() if isinstance(data, str) else data
+        msg_header = MessageHeader(MSG_TYPE_WAMP, len(payload))
 
-        with self._write_lock:  # ensure exclusive access
-            self._sock.sendall(msg_header.to_bytes())
-            self._sock.sendall(payload)
+        try:
+            with self._write_lock:
+                self._sock.sendall(msg_header.to_bytes() + payload)
+        except _CONNECTION_ERRORS as e:
+            self._mark_disconnected(e)
+            raise
 
     def close(self):
-        self._sock.close()
+        try:
+            self._sock.close()
+        finally:
+            self._mark_disconnected(None)
 
     def is_connected(self) -> bool:
-        try:
-            self._sock.send(b"")  # Send zero bytes
-            return True
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            return False
+        return self._connected
 
     def ping(self, timeout: int = 10) -> float:
         f: ConcurrentFuture[int] = ConcurrentFuture()
         payload, ping_header, created_at = create_ping()
         self._pending_pings[payload] = PendingPing(f, created_at)
 
-        self._sock.sendall(ping_header.to_bytes())
-        self._sock.sendall(payload)
+        try:
+            with self._write_lock:
+                self._sock.sendall(ping_header.to_bytes() + payload)
+        except _CONNECTION_ERRORS as e:
+            self._mark_disconnected(e)
+            raise
 
         return f.result(timeout)
 
@@ -156,6 +185,7 @@ class AsyncRawSocketTransport(IAsyncTransport):
         self._reader = reader
         self._writer = writer
 
+        self._connected = True
         self._pending_pings: dict[bytes, PendingPing] = {}
 
     @staticmethod
@@ -189,23 +219,49 @@ class AsyncRawSocketTransport(IAsyncTransport):
 
         return AsyncRawSocketTransport(reader, writer)
 
+    def _mark_disconnected(self, _: Exception | None):
+        if self._connected:
+            self._connected = False
+
     async def read(self) -> str | bytes:
-        msg_header_bytes = await self._reader.readexactly(RAW_SOCKET_HEADER_LENGTH)
+        try:
+            msg_header_bytes = await self._reader.readexactly(RAW_SOCKET_HEADER_LENGTH)
+        except _ASYNC_CONNECTION_ERRORS as e:
+            self._mark_disconnected(e)
+            raise
+
         msg_header = MessageHeader.from_bytes(msg_header_bytes)
 
         if msg_header.kind == MSG_TYPE_WAMP:
-            return await self._reader.readexactly(msg_header.length)
+            try:
+                return await self._reader.readexactly(msg_header.length)
+            except _ASYNC_CONNECTION_ERRORS as e:
+                self._mark_disconnected(e)
+                raise
         elif msg_header.kind == MSG_TYPE_PING:
-            ping_payload = await self._reader.readexactly(msg_header.length)
-            pong = MessageHeader(MSG_TYPE_PONG, msg_header.length)
-            self._writer.write(pong.to_bytes())
-            await self._writer.drain()
-            self._writer.write(ping_payload)
-            await self._writer.drain()
+            try:
+                ping_payload = await self._reader.readexactly(msg_header.length)
+            except _ASYNC_CONNECTION_ERRORS as e:
+                self._mark_disconnected(e)
+                raise
+
+            pong_header = MessageHeader(MSG_TYPE_PONG, msg_header.length)
+
+            try:
+                self._writer.write(pong_header.to_bytes() + ping_payload)
+                await self._writer.drain()
+            except _CONNECTION_ERRORS as e:
+                self._mark_disconnected(e)
+                raise
 
             return await self.read()
         elif msg_header.kind == MSG_TYPE_PONG:
-            pong_payload = await self._reader.readexactly(msg_header.length)
+            try:
+                pong_payload = await self._reader.readexactly(msg_header.length)
+            except _ASYNC_CONNECTION_ERRORS as e:
+                self._mark_disconnected(e)
+                raise
+
             pending_ping = self._pending_pings.pop(pong_payload, None)
             if pending_ping is not None:
                 received_at = time.time() * 1000
@@ -216,39 +272,36 @@ class AsyncRawSocketTransport(IAsyncTransport):
             raise ValueError(f"Unsupported message type {msg_header.kind}")
 
     async def write(self, data: str | bytes):
-        msg_header = MessageHeader(MSG_TYPE_WAMP, len(data))
+        payload = data.encode() if isinstance(data, str) else data
+        msg_header = MessageHeader(MSG_TYPE_WAMP, len(payload))
 
-        self._writer.write(msg_header.to_bytes())
-        await self._writer.drain()
-
-        if isinstance(data, str):
-            self._writer.write(data.encode())
-        else:
-            self._writer.write(data)
-
-        await self._writer.drain()
+        try:
+            self._writer.write(msg_header.to_bytes() + payload)
+            await self._writer.drain()
+        except _CONNECTION_ERRORS as e:
+            self._mark_disconnected(e)
+            raise
 
     async def close(self):
-        self._writer.close()
+        try:
+            self._writer.close()
+        finally:
+            self._mark_disconnected(None)
 
     async def is_connected(self) -> bool:
-        try:
-            self._writer.write(b"")  # Send zero bytes
-            await self._writer.drain()
-            return True
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            return False
+        return self._connected
 
     async def ping(self, timeout: int = 10) -> float:
         f: Future[int] = Future()
         payload, ping_header, created_at = create_ping()
         self._pending_pings[payload] = PendingPing(f, created_at)
 
-        self._writer.write(ping_header.to_bytes())
-        await self._writer.drain()
-
-        self._writer.write(payload)
-        await self._writer.drain()
+        try:
+            self._writer.write(ping_header.to_bytes() + payload)
+            await self._writer.drain()
+        except _CONNECTION_ERRORS as e:
+            self._mark_disconnected(e)
+            raise
 
         return await asyncio.wait_for(f, timeout)
 
