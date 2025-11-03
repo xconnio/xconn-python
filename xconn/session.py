@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor, wait
-from threading import Thread
+import threading
 from os import cpu_count
 from typing import Callable, Any
 from dataclasses import dataclass
@@ -68,11 +68,12 @@ class Session:
         self._session = session.WAMPSession(base_session.serializer)
 
         self._disconnect_callback: list[Callable[[], None] | None] = []
+        self._stopped = threading.Event()
 
         # callback executor thread-pool
         self._executor = ThreadPoolExecutor(max_workers=cpu_count() or 4)
 
-        thread = Thread(target=self._wait, daemon=False)
+        thread = threading.Thread(target=self._wait, daemon=True)
         thread.start()
 
     def _wait(self):
@@ -87,14 +88,14 @@ class Session:
         # Shut down executor, cancelling anything still running
         self._executor.shutdown(cancel_futures=True, wait=False)
 
-        if not self._disconnect_callback:
-            return
+        if self._disconnect_callback:
+            with ThreadPoolExecutor(max_workers=len(self._disconnect_callback)) as executor:
+                # Trigger disconnect callbacks concurrently
+                futures = [executor.submit(cb) for cb in self._disconnect_callback]
+                # Wait up to 1 second for them to finish
+                wait(futures, timeout=1)
 
-        with ThreadPoolExecutor(max_workers=len(self._disconnect_callback)) as executor:
-            # Trigger disconnect callbacks concurrently
-            futures = [executor.submit(cb) for cb in self._disconnect_callback]
-            # Wait up to 1 second for them to finish
-            wait(futures, timeout=1)
+        self._stopped.set()
 
     def _handle_invocation(self, msg: messages.Invocation, endpoint: Callable[[types.Invocation], types.Result]):
         try:
@@ -324,3 +325,12 @@ class Session:
     def _on_disconnect(self, callback: Callable[[], None]) -> None:
         if callback is not None:
             self._disconnect_callback.append(callback)
+
+    def run_forever(self):
+        """Block until the session is closed/disconnected."""
+        print("[Session] Running forever — press Ctrl+C to exit.")
+        try:
+            self._stopped.wait()
+        except KeyboardInterrupt:
+            print("[Session] Interrupted — shutting down...")
+            self.leave()
