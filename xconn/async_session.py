@@ -76,6 +76,49 @@ class AsyncSession:
         self._loop = get_event_loop()
         self.wait_task = self._loop.create_task(self._wait())
 
+    async def _handle_invocation(
+        self,
+        msg: messages.Invocation,
+        endpoint: Union[
+            Callable[[types.Invocation], types.Result], Callable[[types.Invocation], Awaitable[types.Result]]
+        ],
+    ):
+        try:
+            result = await endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
+
+            if result is None:
+                data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+            elif isinstance(result, types.Result):
+                data = self._session.send_message(
+                    messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                )
+            else:
+                message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
+                    type(result)
+                )
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                )
+                data = self._session.send_message(msg_to_send)
+
+            await self._base_session.send(data)
+        except ApplicationError as e:
+            msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
+            data = self._session.send_message(msg_to_send)
+            await self._base_session.send(data)
+        except Exception as e:
+            msg_to_send = messages.Error(
+                messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
+            )
+            data = self._session.send_message(msg_to_send)
+            await self._base_session.send(data)
+
+    async def _handle_event(self, msg: messages.Event, endpoint: Callable[[types.Event], Awaitable[None]]):
+        try:
+            await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+        except Exception as e:
+            print(e)
+
     async def _wait(self):
         while await self._base_session.transport.is_connected():
             try:
@@ -84,12 +127,11 @@ class AsyncSession:
                 print(e)
                 break
 
-            task = self._loop.create_task(self._process_incoming_message(self._session.receive(data)))
-            self._tasks.add(task)
-            task.add_done_callback(self._tasks.discard)
+            await self._process_incoming_message(self._session.receive(data))
 
-        for callback in self._disconnect_callback:
-            await callback()
+        if self._disconnect_callback:
+            callbacks = [callback() for callback in self._disconnect_callback]
+            await asyncio.gather(*callbacks)
 
     async def _process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -104,36 +146,10 @@ class AsyncSession:
             request = self._call_requests.pop(msg.request_id)
             request.set_result(types.Result(msg.args, msg.kwargs, msg.details))
         elif isinstance(msg, messages.Invocation):
-            try:
-                endpoint = self._registrations[msg.registration_id]
-                result = await endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
-
-                if result is None:
-                    data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
-                elif isinstance(result, types.Result):
-                    data = self._session.send_message(
-                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-                    )
-                else:
-                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
-                        type(result)
-                    )
-                    msg_to_send = messages.Error(
-                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
-                    )
-                    data = self._session.send_message(msg_to_send)
-
-                await self._base_session.send(data)
-            except ApplicationError as e:
-                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
-                data = self._session.send_message(msg_to_send)
-                await self._base_session.send(data)
-            except Exception as e:
-                msg_to_send = messages.Error(
-                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
-                )
-                data = self._session.send_message(msg_to_send)
-                await self._base_session.send(data)
+            endpoint = self._registrations[msg.registration_id]
+            task = self._loop.create_task(self._handle_invocation(msg, endpoint))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
         elif isinstance(msg, messages.Subscribed):
             request = self._subscribe_requests.pop(msg.request_id)
             self._subscriptions[msg.subscription_id] = request.endpoint
@@ -147,10 +163,9 @@ class AsyncSession:
             request.set_result(None)
         elif isinstance(msg, messages.Event):
             endpoint = self._subscriptions[msg.subscription_id]
-            try:
-                await endpoint(types.Event(msg.args, msg.kwargs, msg.details))
-            except Exception as e:
-                print(e)
+            task = self._loop.create_task(self._handle_event(msg, endpoint))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
         elif isinstance(msg, messages.Error):
             match msg.message_type:
                 case messages.Call.TYPE:
