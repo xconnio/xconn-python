@@ -71,7 +71,7 @@ class Session:
         self._stopped = threading.Event()
 
         # callback executor thread-pool
-        self._executor = ThreadPoolExecutor(max_workers=cpu_count() or 4)
+        self._executor = ThreadPoolExecutor(max_workers=(cpu_count() or 1) * 4)
 
         thread = threading.Thread(target=self._wait, daemon=True)
         thread.start()
