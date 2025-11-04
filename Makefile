@@ -37,3 +37,13 @@ build-docs:
 
 clean-docs:
 	rm -rf site/
+
+install-nxt:
+	@if ! command -v nxt >/dev/null 2>&1; then \
+  		sudo snap install nxt-router --classic --edge; \
+  	fi
+
+
+integration:
+	make install-nxt
+	./.venv/bin/pytest -s -v tests/integration/

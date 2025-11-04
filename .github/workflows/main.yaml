@@ -33,6 +33,12 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Run Integration tests
+        run: |
+          make install-nxt
+          nxt start -c tests/ &
+          make integration
+
   ruff:
     runs-on: ubuntu-latest
     steps:
