@@ -304,6 +304,9 @@ class WebSocketTransport(ITransport):
         received_at = time.time() * 1000
         return received_at - created_at
 
+    def subprotocol(self):
+        return self._websocket.subprotocol
+
 
 class AsyncWebSocketTransport(IAsyncTransport):
     def __init__(self, websocket: ClientConnection):
@@ -355,3 +358,6 @@ class AsyncWebSocketTransport(IAsyncTransport):
         await asyncio.wait_for(awaitable, timeout)
         received_at = time.time() * 1000
         return received_at - created_at
+
+    def subprotocol(self):
+        return self._websocket.subprotocol

@@ -7,8 +7,9 @@ from tests.utils import ROUTER_URL, REALM
 
 PROCEDURE_ADD = "io.xconn.backend.add2"
 
-SERIALIZERS = [serializers.JSONSerializer(), serializers.CBORSerializer(), serializers.MsgPackSerializer()]
+SERIALIZERS = [None, serializers.JSONSerializer(), serializers.CBORSerializer(), serializers.MsgPackSerializer()]
 AUTHENTICATORS = [
+    None,
     auth.AnonymousAuthenticator(""),
     auth.TicketAuthenticator("ticket-user", "ticket-pass", {}),
     auth.WAMPCRAAuthenticator("wamp-cra-user", "cra-secret", {}),

@@ -20,6 +20,9 @@ CAPNPROTO_SUBPROTOCOL = "wamp.2.capnproto.split_payload"
 
 SERIALIZER_TYPE_CAPNPROTO = 14
 
+WS_SUBPROTOCOLS = [CBOR_SUBPROTOCOL, MSGPACK_SUBPROTOCOL, JSON_SUBPROTOCOL]
+if _CAPNP_AVAILABLE:
+    WS_SUBPROTOCOLS.append(CAPNPROTO_SUBPROTOCOL)
 
 def get_ws_subprotocol(serializer: serializers.Serializer):
     if isinstance(serializer, serializers.JSONSerializer):

@@ -9,7 +9,7 @@ class WebsocketsJoiner:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = None,
         ws_config: types.WebsocketConfig = types.WebsocketConfig(),
     ):
         self._authenticator = authenticator
@@ -17,11 +17,14 @@ class WebsocketsJoiner:
         self._ws_config = ws_config
 
     def join(self, uri: str, realm: str) -> types.BaseSession:
-        transport = WebSocketTransport.connect(
-            uri,
-            subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
-            config=self._ws_config,
-        )
+        if self._serializer is None:
+            subprotocols = helpers.WS_SUBPROTOCOLS
+        else:
+            subprotocols = [helpers.get_ws_subprotocol(serializer=self._serializer)]
+
+        transport = WebSocketTransport.connect(uri, subprotocols=subprotocols, config=self._ws_config)
+        if self._serializer is None:
+            self._serializer = helpers.get_serializer(transport.subprotocol())
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         transport.write(j.send_hello())
@@ -39,7 +42,7 @@ class AsyncWebsocketsJoiner:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = None,
         ws_config: types.WebsocketConfig = types.WebsocketConfig(),
     ):
         self._ws_config = ws_config
@@ -47,11 +50,14 @@ class AsyncWebsocketsJoiner:
         self._serializer = serializer
 
     async def join(self, uri: str, realm: str) -> types.AsyncBaseSession:
-        transport = await AsyncWebSocketTransport.connect(
-            uri,
-            subprotocols=[helpers.get_ws_subprotocol(serializer=self._serializer)],
-            config=self._ws_config,
-        )
+        if self._serializer is None:
+            subprotocols = helpers.WS_SUBPROTOCOLS
+        else:
+            subprotocols = [helpers.get_ws_subprotocol(serializer=self._serializer)]
+
+        transport = await AsyncWebSocketTransport.connect(uri, subprotocols=subprotocols, config=self._ws_config)
+        if self._serializer is None:
+            self._serializer = helpers.get_serializer(transport.subprotocol())
 
         j: Joiner = joiner.Joiner(realm, serializer=self._serializer, authenticator=self._authenticator)
         await transport.write(j.send_hello())
@@ -69,11 +75,11 @@ class RawSocketJoiner:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = serializers.CBORSerializer(),
         config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
-        self._serializer = serializer
+        self._serializer = serializer if serializer is not None else serializers.CBORSerializer()
         self._config = config
 
     def join(self, uri: str, realm: str) -> types.BaseSession:
@@ -95,11 +101,11 @@ class AsyncRawSocketJoiner:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = None,
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = serializers.CBORSerializer(),
         config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
-        self._serializer = serializer
+        self._serializer = serializer if serializer is not None else serializers.CBORSerializer()
         self._config = config
 
     async def join(self, uri: str, realm: str) -> types.AsyncBaseSession:

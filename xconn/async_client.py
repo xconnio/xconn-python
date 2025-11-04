@@ -12,7 +12,7 @@ class AsyncClient:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = auth.AnonymousAuthenticator(""),
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = None,
         ws_config: types.WebsocketConfig = types.WebsocketConfig(),
     ):
         self._authenticator = authenticator

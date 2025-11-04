@@ -12,7 +12,7 @@ class Client:
     def __init__(
         self,
         authenticator: auth.IClientAuthenticator = auth.AnonymousAuthenticator(""),
-        serializer: serializers.Serializer = serializers.JSONSerializer(),
+        serializer: serializers.Serializer = None,
         config: types.TransportConfig = types.TransportConfig(),
     ):
         self._authenticator = authenticator
