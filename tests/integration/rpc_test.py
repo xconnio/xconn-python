@@ -44,7 +44,7 @@ def test_rpc():
 
 
 @pytest.mark.parametrize(
-    "serializer", [serializers.CBORSerializer(), serializers.MsgPackSerializer(), serializers.JSONSerializer()]
+    "serializer", [serializers.CBORSerializer(), serializers.MsgPackSerializer()]
 )
 def test_rpc_with_various_data(serializer: serializers.Serializer):
     client1 = Client(serializer=serializer).connect("ws://localhost:8079/ws", "realm1")

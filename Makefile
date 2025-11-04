@@ -17,7 +17,7 @@ lint:
 	./.venv/bin/ruff check .
 
 test:
-	./.venv/bin/pytest -s -v
+	./.venv/bin/pytest -s -v tests/unit
 
 run:
 	./.venv/bin/xconn example:app --directory examples/simple
@@ -47,3 +47,6 @@ install-nxt:
 integration:
 	make install-nxt
 	./.venv/bin/pytest -s -v tests/integration/
+
+aat:
+	./.venv/bin/pytest -s -v tests/aat/
