@@ -17,7 +17,7 @@ lint:
 	./.venv/bin/ruff check .
 
 test:
-	./.venv/bin/pytest -s -v
+	./.venv/bin/pytest -s -v tests/unit
 
 run:
 	./.venv/bin/xconn example:app --directory examples/simple
@@ -37,3 +37,16 @@ build-docs:
 
 clean-docs:
 	rm -rf site/
+
+install-nxt:
+	@if ! command -v nxt >/dev/null 2>&1; then \
+  		sudo snap install nxt-router --classic --edge; \
+  	fi
+
+
+integration:
+	make install-nxt
+	./.venv/bin/pytest -s -v tests/integration/
+
+aat:
+	./.venv/bin/pytest -s -v tests/aat/

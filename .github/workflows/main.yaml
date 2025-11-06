@@ -22,16 +22,28 @@ jobs:
       - name: Setup environment & install dependencies
         run: make setup
 
+      - name: Run unit tests
+        run: make test
+
+      - name: Install wick
+        run: sudo snap install wick --classic
+
+      - name: Run Integration tests
+        run: |
+          make install-nxt
+          nxt start -c tests/ &
+          timeout 30 bash -c 'until wick --url ws://localhost:8079/ws publish test; do sleep 1; done'
+          make integration
+
       - name: Setup AAT
         run: |
           git clone https://github.com/xconnio/xconn-aat-setup.git
           cd xconn-aat-setup
           make up
-          sudo snap install wick --classic
           timeout 30 bash -c 'until wick --url ws://localhost:8081/ws publish test; do sleep 1; done'
 
-      - name: Run tests
-        run: make test
+      - name: Run AAT tests
+        run: make aat
 
   ruff:
     runs-on: ubuntu-latest
