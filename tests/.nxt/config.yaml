@@ -16,15 +16,6 @@ realms:
             allow_publish: true
             allow_subscribe: true
 
-  - name: io.xconn.mgmt
-    roles:
-      - name: anonymous
-        permissions:
-          - uri: "io.xconn.mgmt."
-            match: prefix
-            allow_call: true
-            allow_subscribe: true
-
 transports:
   - type: websocket
     listener: tcp
