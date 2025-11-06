@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from concurrent.futures import Future
-from threading import Thread
+from concurrent.futures import Future, ThreadPoolExecutor, wait
+import threading
+from os import cpu_count
 from typing import Callable, Any
 from dataclasses import dataclass
 
@@ -67,8 +68,12 @@ class Session:
         self._session = session.WAMPSession(base_session.serializer)
 
         self._disconnect_callback: list[Callable[[], None] | None] = []
+        self._stopped = threading.Event()
 
-        thread = Thread(target=self._wait, daemon=False)
+        # callback executor thread-pool
+        self._executor = ThreadPoolExecutor(max_workers=(cpu_count() or 1) * 4)
+
+        thread = threading.Thread(target=self._wait, daemon=True)
         thread.start()
 
     def _wait(self):
@@ -80,8 +85,54 @@ class Session:
 
             self._process_incoming_message(self._session.receive(data))
 
-        for callback in self._disconnect_callback:
-            callback()
+        # Shut down executor, cancelling anything still running
+        self._executor.shutdown(cancel_futures=True, wait=False)
+
+        if self._disconnect_callback:
+            with ThreadPoolExecutor(max_workers=len(self._disconnect_callback)) as executor:
+                # Trigger disconnect callbacks concurrently
+                futures = [executor.submit(cb) for cb in self._disconnect_callback]
+                # Wait up to 1 second for them to finish
+                wait(futures, timeout=1)
+
+        self._stopped.set()
+
+    def _handle_invocation(self, msg: messages.Invocation, endpoint: Callable[[types.Invocation], types.Result]):
+        try:
+            result = endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
+
+            if result is None:
+                data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
+            elif isinstance(result, types.Result):
+                data = self._session.send_message(
+                    messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
+                )
+            else:
+                message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
+                    type(result)
+                )
+                msg_to_send = messages.Error(
+                    messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
+                )
+                data = self._session.send_message(msg_to_send)
+
+            self._base_session.send(data)
+        except ApplicationError as e:
+            msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
+            data = self._session.send_message(msg_to_send)
+            self._base_session.send(data)
+        except Exception as e:
+            msg_to_send = messages.Error(
+                messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
+            )
+            data = self._session.send_message(msg_to_send)
+            self._base_session.send(data)
+
+    def _handle_event(self, msg: messages.Event, endpoint: Callable[[types.Event], None]):
+        try:
+            endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+        except Exception as e:
+            print(e)
 
     def _process_incoming_message(self, msg: messages.Message):
         if isinstance(msg, messages.Registered):
@@ -98,28 +149,7 @@ class Session:
         elif isinstance(msg, messages.Invocation):
             try:
                 endpoint = self._registrations[msg.registration_id]
-                result = endpoint(types.Invocation(msg.args, msg.kwargs, msg.details))
-
-                if result is None:
-                    data = self._session.send_message(messages.Yield(messages.YieldFields(msg.request_id)))
-                elif isinstance(result, types.Result):
-                    data = self._session.send_message(
-                        messages.Yield(messages.YieldFields(msg.request_id, result.args, result.kwargs, result.details))
-                    )
-                else:
-                    message = "Endpoint returned invalid result type. Expected types.Result or None, got: " + str(
-                        type(result)
-                    )
-                    msg_to_send = messages.Error(
-                        messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_INTERNAL_ERROR, [message])
-                    )
-                    data = self._session.send_message(msg_to_send)
-
-                self._base_session.send(data)
-            except ApplicationError as e:
-                msg_to_send = messages.Error(messages.ErrorFields(msg.TYPE, msg.request_id, e.message, e.args))
-                data = self._session.send_message(msg_to_send)
-                self._base_session.send(data)
+                self._executor.submit(self._handle_invocation, msg, endpoint)
             except Exception as e:
                 msg_to_send = messages.Error(
                     messages.ErrorFields(msg.TYPE, msg.request_id, xconn_uris.ERROR_RUNTIME_ERROR, [e.__str__()])
@@ -140,7 +170,7 @@ class Session:
         elif isinstance(msg, messages.Event):
             try:
                 endpoint = self._subscriptions[msg.subscription_id]
-                endpoint(types.Event(msg.args, msg.kwargs, msg.details))
+                self._executor.submit(self._handle_event, msg, endpoint)
             except Exception as e:
                 print(e)
         elif isinstance(msg, messages.Error):
@@ -295,3 +325,12 @@ class Session:
     def _on_disconnect(self, callback: Callable[[], None]) -> None:
         if callback is not None:
             self._disconnect_callback.append(callback)
+
+    def run_forever(self):
+        """Block until the session is closed/disconnected."""
+        print("[Session] Running forever — press Ctrl+C to exit.")
+        try:
+            self._stopped.wait()
+        except KeyboardInterrupt:
+            print("[Session] Interrupted — shutting down...")
+            self.leave()
