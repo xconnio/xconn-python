@@ -42,6 +42,22 @@ def _setup(app: App, session: Session):
     for uri, func in app.topics.items():
         subscribe_sync(session, uri, func)
 
+    if app.schema_procedure is not None and app.schema_procedure != "":
+        docs = []
+
+        for uri, func in app.procedures.items():
+            docs.append(collect_docs(uri, func, "procedure"))
+
+        for uri, func in app.topics.items():
+            docs.append(collect_docs(uri, func, "topic"))
+
+        def get_schema(_: Invocation) -> Result:
+            return Result(args=docs)
+
+        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
+        session.register(app.schema_procedure, get_schema, options=options)
+        print(f"serving schema at procedure {app.schema_procedure}")
+
 
 def _connect_sync(app: App, config: ClientConfig, start_router: bool = False, directory: str = "."):
     ws_url = urlparse(config.url)
@@ -77,22 +93,6 @@ def _connect_sync(app: App, config: ClientConfig, start_router: bool = False, di
 
     session = client.connect(config.url, config.realm, on_connect, on_disconnect)
     _setup(app, session)
-
-    if app.schema_procedure is not None and app.schema_procedure != "":
-        docs = []
-
-        for uri, func in app.procedures.items():
-            docs.append(collect_docs(uri, func, "procedure"))
-
-        for uri, func in app.topics.items():
-            docs.append(collect_docs(uri, func, "topic"))
-
-        def get_schema(_: Invocation) -> Result:
-            return Result(args=docs)
-
-        options = RegisterOptions(invoke=InvokeOptions.ROUNDROBIN)
-        session.register(app.schema_procedure, get_schema, options=options)
-        print(f"serving schema at procedure {app.schema_procedure}")
 
 
 def connect_sync(app: str, config: ClientConfig, start_router: bool = False, directory: str = "."):
