@@ -7,8 +7,7 @@ install_uv:
 
 setup:
 	make install_uv
-	uv venv
-	uv pip install .[test,publish,dev,capnproto] -U
+	uv sync --locked --all-extras
 
 format:
 	./.venv/bin/ruff format .
