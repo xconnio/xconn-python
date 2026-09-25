@@ -15,7 +15,6 @@ dependencies = [
   "websockets",
   "wampproto >= 0.4.0",
   "aiohttp",
-  "uvloop",
   "pydantic",
   "pyyaml",
   "python-dotenv",
